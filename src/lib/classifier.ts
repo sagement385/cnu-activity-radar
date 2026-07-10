@@ -20,6 +20,21 @@ const LARGE_OR_PUBLIC_KEYWORDS = ["삼성", "현대", "lg", "sk", "포스코", "
 const LOCATION_GOOD_KEYWORDS = ["광주", "전남", "온라인", "비대면", "전남대학교", "전남대"];
 const SEOUL_REQUIRED_KEYWORDS = ["서울 오프라인", "수도권 오프라인", "서울 정기", "수도권 정기"];
 const WORK_STUDY_KEYWORDS = ["근로장학생", "국가근로", "대학근로", "근로 학생"];
+const ADMIN_NOTICE_KEYWORDS = [
+  "시간표",
+  "수강안내",
+  "수강신청",
+  "입학전형",
+  "모집요강",
+  "등록 공고",
+  "강사 공개채용",
+  "휴학",
+  "복학",
+  "졸업",
+  "학사안내",
+  "학위수여",
+  "등록금"
+];
 
 export function classifyCategory(text: string, fallback = "대외활동") {
   for (const rule of CATEGORY_RULES) {
@@ -113,6 +128,11 @@ export function scoreOpportunity(opportunity: OpportunityRow | ScrapedOpportunit
   if (includesAny(text, WORK_STUDY_KEYWORDS)) {
     score -= 100;
     excludedReasons.push("근로장학생/국가근로 계열은 제외 조건에 해당");
+  }
+
+  if (includesAny(text, ADMIN_NOTICE_KEYWORDS)) {
+    score -= 80;
+    excludedReasons.push("시간표·수강·입시 등 행정성 공지라 스펙 활동 추천 대상에서 제외");
   }
 
   if (includesAny(text, SEOUL_REQUIRED_KEYWORDS)) {
