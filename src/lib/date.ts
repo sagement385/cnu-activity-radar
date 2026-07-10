@@ -1,0 +1,62 @@
+const KOREAN_DAY_ORDER = ["일", "월", "화", "수", "목", "금", "토"];
+
+export function todayKst() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+}
+
+export function toDateOnly(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function daysUntil(dateText?: string | null) {
+  if (!dateText) {
+    return null;
+  }
+
+  const target = new Date(`${dateText}T23:59:59+09:00`);
+  const now = todayKst();
+  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function extractKoreanDate(text: string) {
+  const normalized = text.replace(/\s+/g, " ");
+  const match = normalized.match(/(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
+export function extractDeadline(text: string) {
+  const patterns = [
+    /(?:마감|접수기간|모집기간|신청기간|지원기간)[^0-9]{0,20}(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
+    /(?:~|까지)[^0-9]{0,10}(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
+    /(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})[^0-9]{0,10}(?:까지|마감)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match) {
+      const [, year, month, day] = match;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+  }
+
+  return extractKoreanDate(text);
+}
+
+export function extractDays(text: string) {
+  return KOREAN_DAY_ORDER.filter((day) => text.includes(`${day}요일`) || text.includes(day));
+}
+
+export function isExpired(dateText?: string | null) {
+  const remaining = daysUntil(dateText);
+  return remaining !== null && remaining < 0;
+}
