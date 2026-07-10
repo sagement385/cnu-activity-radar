@@ -13,8 +13,8 @@ export type LinkCandidate = {
 
 export function buildOpportunity(source: Source, candidate: LinkCandidate, detailText?: string): ScrapedOpportunity {
   const originalUrl = normalizeUrl(candidate.href, source.url);
-  const rawText = normalizeWhitespace(`${candidate.title} ${candidate.context} ${detailText ?? ""}`);
-  const category = classifyCategory(rawText);
+  const rawText = normalizeWhitespace(`${candidate.title} ${candidate.context} ${detailText ?? ""} ${source.name}`);
+  const category = classifyCategory(`${candidate.title} ${candidate.context} ${source.name}`);
 
   return {
     stableKey: `${source.id}:${stableHash(originalUrl)}`,

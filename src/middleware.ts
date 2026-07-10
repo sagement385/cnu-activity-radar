@@ -4,37 +4,20 @@ export function middleware(request: NextRequest) {
   const secret = process.env.DASHBOARD_SECRET;
   const pathname = request.nextUrl.pathname;
 
-  if (!secret || secret === "disabled" || pathname.startsWith("/_next") || pathname.startsWith("/api/cron") || pathname === "/favicon.ico") {
+  if (!secret || secret === "disabled" || pathname === "/admin" || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
     return NextResponse.next();
   }
 
-  const querySecret = request.nextUrl.searchParams.get("dashboard_secret");
   const cookieSecret = request.cookies.get("dashboard_secret")?.value;
-
-  if (querySecret === secret || cookieSecret === secret) {
-    const response = NextResponse.next();
-
-    if (querySecret === secret) {
-      response.cookies.set("dashboard_secret", secret, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: request.nextUrl.protocol === "https:",
-        maxAge: 60 * 60 * 24 * 30
-      });
-    }
-
-    return response;
+  if (cookieSecret === secret) {
+    return NextResponse.next();
   }
 
-  return new NextResponse(
-    "Dashboard locked. Open with ?dashboard_secret=YOUR_SECRET once to save access.",
-    {
-      status: 401,
-      headers: {
-        "content-type": "text/plain; charset=utf-8"
-      }
-    }
-  );
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return NextResponse.redirect(new URL("/admin", request.url));
 }
 
 export const config = {

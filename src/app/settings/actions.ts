@@ -32,6 +32,7 @@ export async function saveSettings(formData: FormData) {
     schedule,
     preferences: {
       include_categories: splitLines(formData.get("include_categories")),
+      excluded_categories: splitLines(formData.get("excluded_categories")),
       exclude_keywords: splitLines(formData.get("exclude_keywords")),
       priority_keywords: splitLines(formData.get("priority_keywords")),
       avoid_sns_core: formData.get("avoid_sns_core") === "on",

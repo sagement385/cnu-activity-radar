@@ -1,6 +1,7 @@
 import { classifyCategory, scoreOpportunity } from "./classifier";
 import { getSupabaseAdmin } from "./supabase";
 import type { AppSettings, OpportunityRow, ScrapedOpportunity } from "./types";
+import { toDateOnly, todayKst } from "./date";
 
 export async function upsertOpportunities(items: ScrapedOpportunity[]) {
   if (!items.length) {
@@ -44,14 +45,14 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
   return (data ?? []) as OpportunityRow[];
 }
 
-export async function refreshRecommendations(settings: AppSettings, opportunities: OpportunityRow[]) {
+export async function refreshRecommendations(settings: AppSettings, opportunities: OpportunityRow[], curatedRecommendations?: Map<string, ReturnType<typeof scoreOpportunity>>) {
   if (!opportunities.length) {
     return [];
   }
 
   const supabase = getSupabaseAdmin();
   const rows = opportunities.map((opportunity) => {
-    const result = scoreOpportunity(opportunity, settings);
+    const result = curatedRecommendations?.get(opportunity.stable_key) ?? scoreOpportunity(opportunity, settings);
 
     return {
       opportunity_id: opportunity.id,
@@ -79,6 +80,18 @@ export async function refreshRecommendations(settings: AppSettings, opportunitie
   }
 
   return data ?? [];
+}
+
+export async function deleteExpiredOpportunities() {
+  const supabase = getSupabaseAdmin();
+  const today = toDateOnly(todayKst());
+  const { data, error } = await supabase.from("opportunities").delete().lt("deadline", today).select("id");
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.length ?? 0;
 }
 
 export async function updateSourceScrapedAt(sourceId: string) {

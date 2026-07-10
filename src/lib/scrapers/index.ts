@@ -1,8 +1,10 @@
-import { updateSourceScrapedAt, upsertOpportunities, refreshRecommendations, logRun } from "../repository";
+import { updateSourceScrapedAt, upsertOpportunities, refreshRecommendations, logRun, deleteExpiredOpportunities } from "../repository";
 import { getSettings, getSources } from "../supabase";
 import type { ScrapedOpportunity, Source } from "../types";
 import { scrapeJnuBoard, scrapeJnuEvents } from "./jnu";
 import { scrapeLinkareer } from "./linkareer";
+import { scrapeExternal } from "./external";
+import { curateScrapedOpportunities } from "../curation";
 
 export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]> {
   if (source.id === "jnu_events") {
@@ -13,6 +15,10 @@ export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]
     return scrapeLinkareer(source);
   }
 
+  if (source.source_type === "external") {
+    return scrapeExternal(source);
+  }
+
   return scrapeJnuBoard(source);
 }
 
@@ -21,6 +27,7 @@ export async function runScrape() {
   const sources = await getSources();
   const results: ScrapedOpportunity[] = [];
   const sourceSummaries: Array<{ sourceId: string; count: number; error?: string }> = [];
+  const deleted = await deleteExpiredOpportunities();
 
   for (const source of sources.filter((item) => item.enabled)) {
     try {
@@ -37,20 +44,24 @@ export async function runScrape() {
     }
   }
 
-  const upserted = await upsertOpportunities(results);
-  const recommendations = await refreshRecommendations(settings, upserted);
+  const curated = await curateScrapedOpportunities(results, settings);
+  const upserted = await upsertOpportunities(curated.map((item) => item.item));
+  const recommendationByStableKey = new Map(curated.map((item) => [item.item.stableKey, item.recommendation]));
+  const recommendations = await refreshRecommendations(settings, upserted, recommendationByStableKey);
 
   await logRun("scrape", "success", {
     scraped: results.length,
     upserted: upserted.length,
     recommendations: recommendations.length,
-    sources: sourceSummaries
+    sources: sourceSummaries,
+    deleted
   });
 
   return {
     scraped: results.length,
     upserted: upserted.length,
     recommendations: recommendations.length,
-    sources: sourceSummaries
+    sources: sourceSummaries,
+    deleted
   };
 }

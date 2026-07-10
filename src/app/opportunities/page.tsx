@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function OpportunitiesPage() {
   const data = await getDashboardData();
   const rows = data.rows.sort((a, b) => (b.recommendation?.score ?? 0) - (a.recommendation?.score ?? 0));
+  const categories = Array.from(new Set(rows.map((item) => item.category)));
 
   return (
     <>
@@ -18,9 +19,12 @@ export default async function OpportunitiesPage() {
       </section>
 
       <section className="panel">
-        <div className="list">
-          {rows.length ? rows.map((item) => <OpportunityItem key={item.id} item={item} />) : <div className="empty">수집된 공고가 없습니다.</div>}
-        </div>
+        {rows.length ? categories.map((category) => (
+          <div className="category-group" key={category}>
+            <h2>{category}</h2>
+            <div className="list">{rows.filter((item) => item.category === category).map((item) => <OpportunityItem key={item.id} item={item} />)}</div>
+          </div>
+        )) : <div className="empty">수집된 공고가 없습니다.</div>}
       </section>
     </>
   );

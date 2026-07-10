@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runScrape } from "@/lib/scrapers";
 import { shouldScrape } from "@/lib/scrape-status";
 import { runLiveScrape } from "@/lib/live-scrape";
+import { getSettings } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,8 @@ export async function GET(request: NextRequest) {
   const force = request.nextUrl.searchParams.get("force") === "1";
 
   try {
-    const status = await shouldScrape(force);
+    const useSupabase = Boolean(process.env.USE_SUPABASE === "true" && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const status = useSupabase ? await shouldScrape(force) : { shouldRun: true, lastScrapeAt: null, minutesSinceLastRun: null };
 
     if (!status.shouldRun) {
       return NextResponse.json({
@@ -21,11 +23,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const useSupabase = process.env.USE_SUPABASE === "true";
     const result =
       useSupabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-        ? await runScrape().catch(runLiveScrape)
-        : await runLiveScrape();
+        ? await runScrape().catch(async () => runLiveScrape(await getSettings()))
+        : await runLiveScrape(await getSettings());
 
     return NextResponse.json({
       ok: true,

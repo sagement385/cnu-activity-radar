@@ -62,13 +62,13 @@ export function ScrapeControls() {
 
       const upserted = payload.result?.upserted ?? 0;
       const liveItems = Array.isArray(payload.result?.items) ? payload.result.items : [];
-      setItems(liveItems.filter((item: LiveItem) => item.recommendation?.status !== "exclude").slice(0, 6));
+      setItems(liveItems.filter((item: LiveItem) => item.recommendation?.status !== "exclude").slice(0, 12));
       setState({
         label: "스크랩 완료",
         detail:
           payload.result?.mode === "live"
             ? `수집 ${payload.result?.scraped ?? 0}개, 맞춤 후보 ${liveItems.length}개`
-            : `수집 ${payload.result?.scraped ?? 0}개, 저장/갱신 ${upserted}개`,
+            : `수집 ${payload.result?.scraped ?? 0}개, 저장/갱신 ${upserted}개 · 만료 삭제 ${payload.result?.deleted ?? 0}개`,
         running: false
       });
 
@@ -114,16 +114,23 @@ export function ScrapeControls() {
 
       {items.length ? (
         <section className="live-panel">
-          <h2>방금 스크랩한 추천</h2>
-          <div className="live-list">
-            {items.map((item) => (
-              <a className="live-item" href={item.original_url} target="_blank" rel="noreferrer" key={item.id}>
-                <strong>{item.title}</strong>
-                <span>
-                  {item.category} · {item.source_name} · {item.deadline ?? "마감 확인 필요"} · {item.recommendation?.score ?? "-"}점
-                </span>
-                <small>{item.recommendation?.reasons?.[0] ?? item.recommendation?.warnings?.[0] ?? "조건 확인 필요"}</small>
-              </a>
+          <h2>오늘 볼 만한 활동</h2>
+          <div className="category-groups">
+            {Array.from(new Set(items.map((item) => item.category))).map((category) => (
+              <div className="category-group" key={category}>
+                <h3>{category}</h3>
+                <div className="live-list">
+                  {items.filter((item) => item.category === category).map((item) => (
+                    <a className="live-item" href={item.original_url} target="_blank" rel="noreferrer" key={item.id}>
+                      <strong>{item.title}</strong>
+                      <span>
+                        {item.source_name} · {item.deadline ?? "마감 확인 필요"} · {item.recommendation?.score ?? "-"}점
+                      </span>
+                      <small>{item.recommendation?.reasons?.[0] ?? item.recommendation?.warnings?.[0] ?? "조건 확인 필요"}</small>
+                    </a>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </section>

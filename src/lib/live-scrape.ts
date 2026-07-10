@@ -1,9 +1,9 @@
-import { scoreOpportunity } from "./classifier";
+import { curateScrapedOpportunities } from "./curation";
 import { DEFAULT_SETTINGS, DEFAULT_SOURCES } from "./defaults";
 import { scrapeSource } from "./scrapers";
-import type { OpportunityWithRecommendation } from "./types";
+import type { OpportunityWithRecommendation, AppSettings } from "./types";
 
-export async function runLiveScrape() {
+export async function runLiveScrape(settings: AppSettings = DEFAULT_SETTINGS) {
   const scraped = [];
   const sourceSummaries: Array<{ sourceId: string; count: number; error?: string }> = [];
 
@@ -21,7 +21,8 @@ export async function runLiveScrape() {
     }
   }
 
-  const rows: OpportunityWithRecommendation[] = scraped.map((item, index) => {
+  const curated = await curateScrapedOpportunities(scraped, settings);
+  const rows: OpportunityWithRecommendation[] = curated.map(({ item, recommendation }, index) => {
     const opportunity = {
       id: item.stableKey,
       stable_key: item.stableKey,
@@ -45,7 +46,6 @@ export async function runLiveScrape() {
       first_seen_at: new Date().toISOString(),
       last_seen_at: new Date().toISOString()
     };
-    const recommendation = scoreOpportunity(opportunity, DEFAULT_SETTINGS);
 
     return {
       ...opportunity,
@@ -65,8 +65,8 @@ export async function runLiveScrape() {
     mode: "live",
     scraped: scraped.length,
     upserted: 0,
-    recommendations: rows.length,
+    recommendations: rows.filter((item) => item.recommendation?.status !== "exclude").length,
     sources: sourceSummaries,
-    items: rows.slice(0, 20)
+    items: rows.filter((item) => item.recommendation?.status !== "exclude").slice(0, 30)
   };
 }

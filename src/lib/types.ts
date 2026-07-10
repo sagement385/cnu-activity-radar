@@ -35,6 +35,7 @@ export type AppSettings = {
   };
   preferences: {
     include_categories: string[];
+    excluded_categories: string[];
     exclude_keywords: string[];
     priority_keywords: string[];
     avoid_sns_core: boolean;

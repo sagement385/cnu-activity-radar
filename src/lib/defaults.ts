@@ -38,8 +38,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     }
   },
   preferences: {
-    include_categories: ["서포터즈", "공모전", "대외활동", "교내 프로그램", "장학·활동비", "현장실습·인턴", "교육·캠프"],
-    exclude_keywords: ["근로장학생", "국가근로", "SNS 필수", "인스타 필수", "릴스", "블로그 필수", "유튜브 홍보", "수도권 정기"],
+    include_categories: ["서포터즈", "공모전", "대외활동", "교내 프로그램", "장학·활동비", "교육·캠프", "취업·멘토링"],
+    excluded_categories: ["현장실습·인턴"],
+    exclude_keywords: ["근로장학생", "국가근로", "대학근로", "현장실습", "인턴", "채용연계", "실습학기제", "실습생", "SNS 필수", "인스타 필수", "릴스 필수", "블로그 필수", "유튜브 홍보", "수도권 정기", "서울 정기"],
     priority_keywords: ["기계공학", "공학", "공대", "제조", "모빌리티", "자동차", "로봇", "AI", "에너지", "공공기관", "대기업", "활동비", "장학금", "수료증", "기수", "서포터즈"],
     avoid_sns_core: true,
     prefer_paid: true,
@@ -80,6 +81,20 @@ export const DEFAULT_SOURCES: Source[] = [
     id: "linkareer_activity",
     name: "링커리어 대외활동",
     url: "https://linkareer.com/list/activity",
+    source_type: "external",
+    enabled: true
+  },
+  {
+    id: "allforyoung_activity",
+    name: "올포영 대외활동/공모전",
+    url: "https://www.allforyoung.com/posts/contest",
+    source_type: "external",
+    enabled: true
+  },
+  {
+    id: "thinkcontest_activity",
+    name: "씽굿 공모전/대외활동",
+    url: "https://www.thinkcontest.com/Contest/CateField.html?c=1",
     source_type: "external",
     enabled: true
   }

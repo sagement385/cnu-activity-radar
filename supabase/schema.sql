@@ -132,8 +132,9 @@ values (
     }
   }',
   '{
-    "include_categories": ["서포터즈", "공모전", "대외활동", "교내 프로그램", "장학·활동비", "현장실습·인턴", "교육·캠프"],
-    "exclude_keywords": ["근로장학생", "국가근로", "SNS 필수", "인스타 필수", "릴스", "블로그 필수", "유튜브 홍보", "수도권 정기"],
+    "include_categories": ["서포터즈", "공모전", "대외활동", "교내 프로그램", "장학·활동비", "교육·캠프", "취업·멘토링"],
+    "excluded_categories": ["현장실습·인턴"],
+    "exclude_keywords": ["근로장학생", "국가근로", "대학근로", "현장실습", "인턴", "채용연계", "실습학기제", "실습생", "SNS 필수", "인스타 필수", "릴스 필수", "블로그 필수", "유튜브 홍보", "수도권 정기", "서울 정기"],
     "priority_keywords": ["기계공학", "공학", "공대", "제조", "모빌리티", "자동차", "로봇", "AI", "에너지", "공공기관", "대기업", "활동비", "장학금", "수료증", "기수", "서포터즈"],
     "avoid_sns_core": true,
     "prefer_paid": true,
@@ -149,12 +150,20 @@ values (
 )
 on conflict (id) do nothing;
 
+update app_settings
+set preferences = preferences || '{"excluded_categories": ["현장실습·인턴"]}'::jsonb,
+    updated_at = now()
+where id = 'default'
+  and not (preferences ? 'excluded_categories');
+
 insert into sources (id, name, url, source_type)
 values
   ('jnu_events', '전남대 행사/비교과', 'https://events.jnu.ac.kr/Search.aspx?mode=text&query=', 'university'),
   ('jnu_main_notice', '전남대 대표 공지', 'https://www.jnu.ac.kr/WebApp/web/HOM/COM/Board/board.aspx?boardID=5', 'university'),
   ('jnu_mech_notice', '전남대 기계공학부 공지', 'https://mech.jnu.ac.kr/mech/8218/subview.do', 'department'),
-  ('linkareer_activity', '링커리어 대외활동', 'https://linkareer.com/list/activity', 'external')
+  ('linkareer_activity', '링커리어 대외활동', 'https://linkareer.com/list/activity', 'external'),
+  ('allforyoung_activity', '올포영 대외활동/공모전', 'https://www.allforyoung.com/posts/contest', 'external'),
+  ('thinkcontest_activity', '씽굿 공모전/대외활동', 'https://www.thinkcontest.com/Contest/CateField.html?c=1', 'external')
 on conflict (id) do update
 set name = excluded.name,
     url = excluded.url,

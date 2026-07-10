@@ -37,19 +37,41 @@ export function extractDeadline(text: string) {
   const patterns = [
     /(?:마감|접수기간|모집기간|신청기간|지원기간)[^0-9]{0,20}(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
     /(?:~|까지)[^0-9]{0,10}(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
-    /(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})[^0-9]{0,10}(?:까지|마감)/i
+    /(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})[^0-9]{0,10}(?:까지|마감)/i,
+    /(?:~|까지|마감)[^0-9]{0,8}(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
+    /(\d{1,2})[.\-/월]\s*(\d{1,2})[^0-9]{0,8}(?:까지|마감)/i
   ];
+
+  const shortYearMatch = text.match(/(?:~|까지|마감)[^0-9]{0,8}[']?(\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i);
+  if (shortYearMatch) {
+    const [, shortYear, month, day] = shortYearMatch;
+    return makeDate(`20${shortYear}`, month, day);
+  }
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
 
     if (match) {
-      const [, year, month, day] = match;
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+      const [, first, second, third] = match;
+      const year = third ? first : `${todayKst().getFullYear()}`;
+      const month = third ? second : first;
+      const day = third ? third : second;
+      return makeDate(year, month, day);
     }
   }
 
   return extractKoreanDate(text);
+}
+
+function makeDate(year: string, month: string, day: string) {
+  const monthNumber = Number(month);
+  const dayNumber = Number(day);
+
+  if (monthNumber < 1 || monthNumber > 12 || dayNumber < 1 || dayNumber > 31) {
+    return null;
+  }
+
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 export function extractDays(text: string) {

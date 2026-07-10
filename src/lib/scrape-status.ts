@@ -24,7 +24,13 @@ export async function shouldScrape(force = false) {
   }
 
   const minInterval = Number(process.env.SCRAPE_MIN_INTERVAL_MINUTES ?? 60);
-  const lastScrapeAt = await getLastScrapeAt();
+  let lastScrapeAt: Date | null = null;
+
+  try {
+    lastScrapeAt = await getLastScrapeAt();
+  } catch {
+    return { shouldRun: true, lastScrapeAt: null, minutesSinceLastRun: null };
+  }
 
   if (!lastScrapeAt) {
     return { shouldRun: true, lastScrapeAt: null, minutesSinceLastRun: null };

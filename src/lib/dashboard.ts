@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import type { OpportunityRow, OpportunityWithRecommendation } from "./types";
+import { toDateOnly, todayKst } from "./date";
 
 type RecommendationRow = {
   opportunity_id: string;
@@ -21,7 +22,7 @@ export async function getDashboardData() {
     const supabase = getSupabaseAdmin();
     const [{ data: recs }, { data: opportunities }, { data: logs }, { data: settings }] = await Promise.all([
       supabase.from("recommendations").select("*").eq("settings_id", "default").order("score", { ascending: false }).limit(120),
-      supabase.from("opportunities").select("*").order("last_seen_at", { ascending: false }).limit(120),
+      supabase.from("opportunities").select("*").or(`deadline.is.null,deadline.gte.${toDateOnly(todayKst())}`).order("last_seen_at", { ascending: false }).limit(120),
       supabase.from("notification_logs").select("*").order("sent_at", { ascending: false }).limit(8),
       supabase.from("app_settings").select("*").eq("id", "default").single()
     ]);

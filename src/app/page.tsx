@@ -13,6 +13,7 @@ export default async function HomePage() {
     .filter((item) => item.recommendation?.status === "maybe")
     .sort((a, b) => (b.recommendation?.score ?? 0) - (a.recommendation?.score ?? 0))
     .slice(0, 5);
+  const categoryGroups = Array.from(new Set(recommended.map((item) => item.category)));
 
   return (
     <>
@@ -29,7 +30,7 @@ export default async function HomePage() {
 
       {!data.ok ? (
         <section className="empty">
-          Supabase 환경변수 또는 스키마 설정이 아직 필요합니다. `.env.local`과 `supabase/schema.sql`을 확인하세요.
+          저장된 추천을 불러오지 못했습니다. 위 스크랩 결과는 실시간으로 확인할 수 있습니다.
           <br />
           오류: {data.error}
         </section>
@@ -56,9 +57,12 @@ export default async function HomePage() {
 
       <section className="panel">
         <h2>추천 공고</h2>
-        <div className="list">
-          {recommended.length ? recommended.map((item) => <OpportunityItem key={item.id} item={item} />) : <div className="empty">아직 추천 공고가 없습니다.</div>}
-        </div>
+        {categoryGroups.length ? categoryGroups.map((category) => (
+          <div className="category-group" key={category}>
+            <h3>{category}</h3>
+            <div className="list">{recommended.filter((item) => item.category === category).map((item) => <OpportunityItem key={item.id} item={item} />)}</div>
+          </div>
+        )) : <div className="empty">스크랩이 끝나면 맞춤 후보를 이곳에 채웁니다.</div>}
       </section>
 
       <section className="panel">

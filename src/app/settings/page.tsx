@@ -48,6 +48,10 @@ export default async function SettingsPage() {
           <textarea name="include_categories" defaultValue={settings.preferences.include_categories.join("\n")} />
         </label>
         <label className="full">
+          제외 카테고리
+          <textarea name="excluded_categories" defaultValue={settings.preferences.excluded_categories.join("\n")} />
+        </label>
+        <label className="full">
           우선 키워드
           <textarea name="priority_keywords" defaultValue={settings.preferences.priority_keywords.join("\n")} />
         </label>
