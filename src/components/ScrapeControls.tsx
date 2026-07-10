@@ -8,6 +8,21 @@ type ScrapeState = {
   running: boolean;
 };
 
+type LiveItem = {
+  id: string;
+  title: string;
+  source_name: string;
+  category: string;
+  deadline: string | null;
+  original_url: string;
+  recommendation?: {
+    score: number;
+    status: "recommend" | "maybe" | "exclude";
+    reasons: string[];
+    warnings: string[];
+  };
+};
+
 const AUTO_INTERVAL_MS = 60 * 60 * 1000;
 
 export function ScrapeControls() {
@@ -16,6 +31,7 @@ export function ScrapeControls() {
     detail: "사이트가 열리면 새 공고를 확인합니다.",
     running: false
   });
+  const [items, setItems] = useState<LiveItem[]>([]);
   const [isPending, startTransition] = useTransition();
 
   const runScrape = useCallback(async (force = false, reloadOnUpdate = false) => {
@@ -45,13 +61,18 @@ export function ScrapeControls() {
       }
 
       const upserted = payload.result?.upserted ?? 0;
+      const liveItems = Array.isArray(payload.result?.items) ? payload.result.items : [];
+      setItems(liveItems.filter((item: LiveItem) => item.recommendation?.status !== "exclude").slice(0, 6));
       setState({
         label: "스크랩 완료",
-        detail: `수집 ${payload.result?.scraped ?? 0}개, 저장/갱신 ${upserted}개`,
+        detail:
+          payload.result?.mode === "live"
+            ? `수집 ${payload.result?.scraped ?? 0}개, 맞춤 후보 ${liveItems.length}개`
+            : `수집 ${payload.result?.scraped ?? 0}개, 저장/갱신 ${upserted}개`,
         running: false
       });
 
-      if (reloadOnUpdate) {
+      if (reloadOnUpdate && payload.result?.mode !== "live") {
         window.setTimeout(() => window.location.reload(), 600);
       }
     } catch (error) {
@@ -75,19 +96,38 @@ export function ScrapeControls() {
   }, [runScrape]);
 
   return (
-    <div className="scrape-status">
-      <div>
-        <strong>{state.label}</strong>
-        <span>{state.detail}</span>
+    <div className="scrape-shell">
+      <div className="scrape-status">
+        <div>
+          <strong>{state.label}</strong>
+          <span>{state.detail}</span>
+        </div>
+        <button
+          className="button secondary"
+          type="button"
+          disabled={state.running || isPending}
+          onClick={() => startTransition(() => runScrape(true, true))}
+        >
+          지금 스크랩
+        </button>
       </div>
-      <button
-        className="button secondary"
-        type="button"
-        disabled={state.running || isPending}
-        onClick={() => startTransition(() => runScrape(true, true))}
-      >
-        지금 스크랩
-      </button>
+
+      {items.length ? (
+        <section className="live-panel">
+          <h2>방금 스크랩한 추천</h2>
+          <div className="live-list">
+            {items.map((item) => (
+              <a className="live-item" href={item.original_url} target="_blank" rel="noreferrer" key={item.id}>
+                <strong>{item.title}</strong>
+                <span>
+                  {item.category} · {item.source_name} · {item.deadline ?? "마감 확인 필요"} · {item.recommendation?.score ?? "-"}점
+                </span>
+                <small>{item.recommendation?.reasons?.[0] ?? item.recommendation?.warnings?.[0] ?? "조건 확인 필요"}</small>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -18,10 +18,6 @@ services:
         value: "true"
       - key: SCRAPE_MIN_INTERVAL_MINUTES
         value: "60"
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
       - key: AI_PROVIDER
         value: none
       - key: GEMINI_MODEL

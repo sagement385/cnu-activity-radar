@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScrape } from "@/lib/scrapers";
 import { shouldScrape } from "@/lib/scrape-status";
+import { runLiveScrape } from "@/lib/live-scrape";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const result = await runScrape();
+    const result = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? await runScrape().catch(runLiveScrape) : await runLiveScrape();
 
     return NextResponse.json({
       ok: true,

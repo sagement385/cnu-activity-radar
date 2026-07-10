@@ -121,12 +121,17 @@ h2 {
   background: var(--surface);
 }
 
+.scrape-shell {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
 .scrape-status {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 18px;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -145,6 +150,44 @@ h2 {
 .scrape-status span {
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.45;
+}
+
+.live-panel {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.live-panel h2 {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.live-list {
+  display: grid;
+  gap: 8px;
+}
+
+.live-item {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcfd;
+}
+
+.live-item strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.live-item span,
+.live-item small {
+  color: var(--muted);
+  font-size: 12px;
   line-height: 1.45;
 }
 
