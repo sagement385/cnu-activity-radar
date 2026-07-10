@@ -4,7 +4,7 @@ export function middleware(request: NextRequest) {
   const secret = process.env.DASHBOARD_SECRET;
   const pathname = request.nextUrl.pathname;
 
-  if (!secret || pathname.startsWith("/_next") || pathname.startsWith("/api/cron") || pathname === "/favicon.ico") {
+  if (!secret || secret === "disabled" || pathname.startsWith("/_next") || pathname.startsWith("/api/cron") || pathname === "/favicon.ico") {
     return NextResponse.next();
   }
 
