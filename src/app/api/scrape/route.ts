@@ -21,7 +21,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const result = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? await runScrape().catch(runLiveScrape) : await runLiveScrape();
+    const useSupabase = process.env.USE_SUPABASE === "true";
+    const result =
+      useSupabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? await runScrape().catch(runLiveScrape)
+        : await runLiveScrape();
 
     return NextResponse.json({
       ok: true,

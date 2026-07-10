@@ -18,6 +18,8 @@ services:
         value: "true"
       - key: SCRAPE_MIN_INTERVAL_MINUTES
         value: "60"
+      - key: USE_SUPABASE
+        value: "false"
       - key: AI_PROVIDER
         value: none
       - key: GEMINI_MODEL
