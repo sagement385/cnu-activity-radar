@@ -2,7 +2,7 @@ services:
   - type: web
     name: cnu-activity-radar
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     envVars:
@@ -14,85 +14,15 @@ services:
         generateValue: true
       - key: DASHBOARD_SECRET
         generateValue: true
+      - key: SCRAPE_ON_PAGE_LOAD
+        value: "true"
+      - key: SCRAPE_MIN_INTERVAL_MINUTES
+        value: "60"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: KAKAO_REST_API_KEY
-        sync: false
-      - key: KAKAO_REFRESH_TOKEN
         sync: false
       - key: AI_PROVIDER
         value: none
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
-
-  - type: cron
-    name: cnu-activity-radar-morning
-    runtime: node
-    schedule: "0 23 * * *"
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
-    startCommand: pnpm digest -- morning
-    envVars:
-      - key: NODE_VERSION
-        value: 22
-      - key: NEXT_PUBLIC_APP_URL
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: NEXT_PUBLIC_APP_URL
-      - key: SUPABASE_URL
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: SUPABASE_URL
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: SUPABASE_SERVICE_ROLE_KEY
-      - key: KAKAO_REST_API_KEY
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: KAKAO_REST_API_KEY
-      - key: KAKAO_REFRESH_TOKEN
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: KAKAO_REFRESH_TOKEN
-
-  - type: cron
-    name: cnu-activity-radar-evening
-    runtime: node
-    schedule: "0 12 * * *"
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
-    startCommand: pnpm digest -- evening
-    envVars:
-      - key: NODE_VERSION
-        value: 22
-      - key: NEXT_PUBLIC_APP_URL
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: NEXT_PUBLIC_APP_URL
-      - key: SUPABASE_URL
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: SUPABASE_URL
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: SUPABASE_SERVICE_ROLE_KEY
-      - key: KAKAO_REST_API_KEY
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: KAKAO_REST_API_KEY
-      - key: KAKAO_REFRESH_TOKEN
-        fromService:
-          type: web
-          name: cnu-activity-radar
-          envVarKey: KAKAO_REFRESH_TOKEN

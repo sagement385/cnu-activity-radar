@@ -22,8 +22,8 @@ export default async function HomePage() {
           <h1>오늘 볼 만한 활동</h1>
           <p className="muted">전남대, 기계공학부, 링커리어 공고를 훑고 네 조건에 맞는 것만 추려요.</p>
         </div>
-        <a className="button" href="/api/cron/digest?period=manual" target="_blank" rel="noreferrer">
-          수동 실행
+        <a className="button" href="/opportunities">
+          전체 보기
         </a>
       </section>
 
