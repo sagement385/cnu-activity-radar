@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm start
+    startCommand: pnpm start -- -H 0.0.0.0 -p $PORT
     envVars:
       - key: NODE_VERSION
         value: 22
