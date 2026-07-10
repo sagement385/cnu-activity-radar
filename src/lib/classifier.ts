@@ -2,6 +2,38 @@ import type { AppSettings, OpportunityRow, Recommendation, ScrapedOpportunity } 
 import { daysUntil, isExpired } from "./date";
 import { includesAny, matchKeywords } from "./text";
 
+const LOW_SIGNAL_TITLE_KEYWORDS = [
+  "심포지엄",
+  "세미나",
+  "워크숍",
+  "워크샵",
+  "사례나눔회",
+  "참관 안내",
+  "마이크로 디그리",
+  "연구방법론",
+  "연구워크숍",
+  "연구 워크숍",
+  "영어 학습 코칭",
+  "언어교육원",
+  "재직자",
+];
+
+const CONCRETE_OUTCOME_KEYWORDS = [
+  "수료증",
+  "활동비",
+  "장학금",
+  "지원금",
+  "프로젝트",
+  "공모전",
+  "경진대회",
+  "해커톤",
+  "서포터즈",
+  "멘토링",
+  "선발",
+  "기수",
+  "포트폴리오",
+];
+
 export const CATEGORIES = [
   "서포터즈",
   "공모전",
@@ -114,6 +146,12 @@ export function hardExcludeReasons(opportunity: OpportunityRow | ScrapedOpportun
     reasons.push("시간표·수강·입시·학사 등 행정성 공지는 제외");
   }
 
+  const hasLowSignalTitle = includesAny(title, LOW_SIGNAL_TITLE_KEYWORDS);
+  const hasConcreteOutcome = includesAny(text, CONCRETE_OUTCOME_KEYWORDS);
+  if (hasLowSignalTitle && !hasConcreteOutcome) {
+    reasons.push("일반 행사·강연 중심이고 스펙으로 남는 결과가 확인되지 않음");
+  }
+
   if (includesAny(text, SEOUL_REQUIRED_KEYWORDS)) {
     reasons.push("수도권 정기 오프라인 활동은 현재 일정과 맞지 않아 제외");
   }
@@ -151,6 +189,7 @@ export function scoreOpportunity(opportunity: OpportunityRow | ScrapedOpportunit
   const isLargeOrPublic = includesAny(text, LARGE_OR_PUBLIC_KEYWORDS);
   const isGoodLocation = includesAny(text, LOCATION_GOOD_KEYWORDS);
   const hasSpecValue = includesAny(text, SPEC_VALUE_KEYWORDS);
+  const hasConcreteOutcome = includesAny(text, CONCRETE_OUTCOME_KEYWORDS);
   const isPassiveEvent = includesAny(text, PASSIVE_EVENT_KEYWORDS);
   const isUniversity = sourceId?.includes("jnu") || sourceName.includes("전남대") || sourceName.includes("전남대학교");
   const isDepartment = sourceId?.includes("mech") || sourceName.includes("기계공학");
@@ -188,6 +227,11 @@ export function scoreOpportunity(opportunity: OpportunityRow | ScrapedOpportunit
     score -= 35;
     warnings.push("관람·전시 성격이 강해 스펙 활용도는 낮을 수 있음");
   }
+  if (includesAny(title, LOW_SIGNAL_TITLE_KEYWORDS) && !hasConcreteOutcome) {
+    score -= 25;
+    warnings.push("일반 행사형 공고라 수료증·활동비·프로젝트 여부를 확인할 필요가 있음");
+  }
+
   if (preferenceHits.length > 0) {
     score += Math.min(preferenceHits.length * 3, 12);
     reasons.push(`우선 키워드와 일치: ${preferenceHits.slice(0, 4).join(", ")}`);
