@@ -147,7 +147,7 @@ export function hardExcludeReasons(opportunity: OpportunityRow | ScrapedOpportun
   }
 
   const hasLowSignalTitle = includesAny(title, LOW_SIGNAL_TITLE_KEYWORDS);
-  const hasConcreteOutcome = includesAny(text, CONCRETE_OUTCOME_KEYWORDS);
+  const hasConcreteOutcome = includesAny(title, CONCRETE_OUTCOME_KEYWORDS);
   if (hasLowSignalTitle && !hasConcreteOutcome) {
     reasons.push("일반 행사·강연 중심이고 스펙으로 남는 결과가 확인되지 않음");
   }
