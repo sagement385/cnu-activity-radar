@@ -25,6 +25,15 @@ function describeDatabaseError(error: unknown) {
   return String(error || "unknown database error");
 }
 
+function isUsablePosterUrl(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  const lowered = value.toLowerCase();
+  return !lowered.startsWith("data:") && !lowered.includes("icon_file") && !lowered.includes("placeholder");
+}
+
 function mergeDuplicateItems(items: ScrapedOpportunity[]) {
   const byStableKey = new Map<string, ScrapedOpportunity>();
 
@@ -75,7 +84,7 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
     source_name: item.sourceName,
     source_url: item.sourceUrl,
     original_url: item.originalUrl,
-    poster_url: item.posterUrl ?? existingPosterByKey.get(item.stableKey) ?? null,
+    poster_url: item.posterUrl ?? (isUsablePosterUrl(existingPosterByKey.get(item.stableKey)) ? existingPosterByKey.get(item.stableKey) : null),
     organization: item.organization ?? null,
     category: item.category ?? classifyCategory(`${item.title} ${item.rawText}`),
     location: item.location ?? null,
