@@ -7,11 +7,15 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret") || request.headers.get("x-cron-secret");
 
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const period = (request.nextUrl.searchParams.get("period") ?? "manual") as DigestPeriod;
+  const requestedPeriod = request.nextUrl.searchParams.get("period") ?? "manual";
+  if (!(["morning", "evening", "manual"] as string[]).includes(requestedPeriod)) {
+    return NextResponse.json({ error: "Invalid period" }, { status: 400 });
+  }
+  const period = requestedPeriod as DigestPeriod;
   const result = await runDigest(period);
 
   return NextResponse.json(result);

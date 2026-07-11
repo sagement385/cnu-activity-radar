@@ -17,6 +17,15 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
   const rawText = normalizeWhitespace(`${candidate.title} ${candidate.context} ${detailText ?? ""} ${source.name}`);
   const category = classifyCategory(`${candidate.title} ${candidate.context} ${source.name}`);
 
+  const deadline = extractDeadline(rawText);
+  const isCampus = source.id.startsWith("jnu_") || source.source_type !== "external";
+  const activityType = /온라인|비대면|원격/i.test(rawText)
+    ? /오프라인|대면/i.test(rawText) ? "혼합" : "온라인"
+    : /오프라인|대면|장소/i.test(rawText) ? "오프라인" : "미확인";
+  const eligibilityStatus = /대학원생\s*(전용|만)|재직자\s*(전용|만)|졸업생\s*(전용|만)|교직원\s*대상/i.test(rawText)
+    ? "지원 불가"
+    : /학부생|재학생|대학생/i.test(rawText) ? "지원 가능" : "조건 확인 필요";
+
   return {
     stableKey: `${source.id}:${stableHash(originalUrl)}`,
     title: candidate.title,
@@ -25,11 +34,22 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
     sourceUrl: source.url,
     originalUrl,
     posterUrl: detailImageUrl ?? candidate.imageUrl ?? null,
+    organization: source.organization ?? (isCampus ? "전남대학교" : null),
     category,
-    deadline: extractDeadline(rawText),
+    subCategory: source.source_group ?? null,
+    campusScope: isCampus ? "교내" : "교외",
+    target: [],
+    allowedGrades: [],
+    allowedMajors: [],
+    activityType,
+    deadline,
+    eligibilityStatus,
+    deadlineConfidence: deadline ? "high" : "low",
+    dataConfidence: detailText ? "high" : "medium",
     summary: truncate(rawText, 220),
     rawText,
-    tags: [category]
+    tags: Array.from(new Set([category, source.source_group].filter(Boolean) as string[])),
+    sourceRefs: [{ sourceId: source.id, sourceName: source.name, sourceUrl: source.url, originalUrl }]
   };
 }
 

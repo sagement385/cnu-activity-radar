@@ -14,6 +14,8 @@ services:
         generateValue: true
       - key: DASHBOARD_SECRET
         sync: false
+      - key: ADMIN_SESSION_SECRET
+        generateValue: true
       - key: SCRAPE_ON_PAGE_LOAD
         value: "false"
       - key: SCRAPE_MIN_INTERVAL_MINUTES

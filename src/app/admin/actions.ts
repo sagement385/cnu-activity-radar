@@ -2,24 +2,33 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { createAdminSessionToken, ADMIN_COOKIE_NAME, ADMIN_SESSION_SECONDS } from "@/lib/admin-session";
+import { getLoginIdentifier, isLoginRateLimited, recordLoginAttempt, verifyAdminPassword } from "@/lib/admin-auth";
 
 export async function loginAdmin(formData: FormData) {
-  const secret = process.env.DASHBOARD_SECRET;
   const password = String(formData.get("password") ?? "");
   const nextPath = String(formData.get("next") ?? "/");
   const redirectPath = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/";
 
-  if (!secret || secret === "disabled" || password === secret) {
+  const identifierHash = await getLoginIdentifier();
+  if (await isLoginRateLimited(identifierHash)) {
+    redirect(`/admin?error=locked&next=${encodeURIComponent(redirectPath)}`);
+  }
+
+  if (verifyAdminPassword(password)) {
+    await recordLoginAttempt(identifierHash, true);
+    const token = await createAdminSessionToken();
     const cookieStore = await cookies();
-    cookieStore.set("dashboard_secret", secret && secret !== "disabled" ? secret : "local", {
+    cookieStore.set(ADMIN_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: ADMIN_SESSION_SECONDS,
       path: "/"
     });
     redirect(redirectPath);
   }
 
-  redirect("/admin?error=1");
+  await recordLoginAttempt(identifierHash, false);
+  redirect(`/admin?error=1&next=${encodeURIComponent(redirectPath)}`);
 }

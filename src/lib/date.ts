@@ -34,8 +34,23 @@ export function extractKoreanDate(text: string) {
 }
 
 export function extractDeadline(text: string) {
+  const labelledMatch = text.match(/(?:마감(?:일)?|접수(?:기간)?(?=\s*[:：]?\s*20)|모집기간|신청(?:기간)?(?=\s*[:：]?\s*20)|지원기간|서류접수)[\s\S]{0,180}/i);
+  if (labelledMatch) {
+    const scope = labelledMatch[0].split(/(?:운영기간|활동기간|교육기간|행사기간|파견기간)/i)[0];
+    const rangeMatch = scope.match(/(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})[^0-9]{0,20}(?:~|부터)[^0-9]{0,12}(?:(20\d{2})[.\-/년]\s*)?(\d{1,2})[.\-/월]\s*(\d{1,2})/i);
+    if (rangeMatch) {
+      const [, startYear, , , endYear, endMonth, endDay] = rangeMatch;
+      return makeDate(endYear || startYear, endMonth, endDay);
+    }
+
+    const fullDates = [...scope.matchAll(/(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/g)];
+    if (fullDates.length) {
+      const match = fullDates[fullDates.length - 1];
+      return makeDate(match[1], match[2], match[3]);
+    }
+  }
+
   const patterns = [
-    /(?:마감|접수기간|모집기간|신청기간|지원기간)[^0-9]{0,20}(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
     /(?:~|까지)[^0-9]{0,10}(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
     /(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})[^0-9]{0,10}(?:까지|마감)/i,
     /(?:~|까지|마감)[^0-9]{0,8}(\d{1,2})[.\-/월]\s*(\d{1,2})/i,
@@ -60,7 +75,7 @@ export function extractDeadline(text: string) {
     }
   }
 
-  return extractKoreanDate(text);
+  return null;
 }
 
 function makeDate(year: string, month: string, day: string) {

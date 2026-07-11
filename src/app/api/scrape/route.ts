@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     if (useSupabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       try {
-        result = await runScrape();
+        result = await runScrape({ force });
       } catch (error) {
         storageError = describeError(error);
         console.error("Supabase scrape failed", error);

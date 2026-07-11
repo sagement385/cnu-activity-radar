@@ -172,3 +172,5 @@ set name = excluded.name,
     url = excluded.url,
     source_type = excluded.source_type,
     updated_at = now();
+
+-- Apply supabase/migrations/20260711_improvement_spec.sql after this base schema.

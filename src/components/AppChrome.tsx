@@ -26,7 +26,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             <span aria-hidden="true">▤</span> 전체 공고
           </Link>
           <Link href="/opportunities#history">
-            <span aria-hidden="true">▣</span> 스크랩 기록
+            <span aria-hidden="true">▣</span> 수집 기록
           </Link>
           <Link href="/settings" className={pathname.startsWith("/settings") ? "active" : undefined} aria-current={pathname.startsWith("/settings") ? "page" : undefined}>
             <span aria-hidden="true">⚙</span> 설정

@@ -51,6 +51,45 @@ export async function scrapeJnuBoard(source: Source): Promise<ScrapedOpportunity
   return hydrateCandidates(source, uniqueCandidates(candidates).slice(0, 24), 10);
 }
 
+export async function scrapeRegistryBoard(source: Source): Promise<ScrapedOpportunity[]> {
+  const html = await fetchHtml(source.list_url ?? source.url);
+  const $ = loadHtml(html);
+  const candidates: LinkCandidate[] = [];
+  const config = source.parser_config ?? {};
+  const selector = config.link_selector || "a[href]";
+  let hrefPattern: RegExp;
+
+  try {
+    hrefPattern = new RegExp(config.link_pattern || "artclView|bbsMode=view", "i");
+  } catch {
+    throw new Error(`Invalid link pattern for ${source.id}`);
+  }
+
+  $(selector).each((_, element) => {
+    const link = $(element);
+    const href = link.attr("href") ?? "";
+    if (!hrefPattern.test(href)) return;
+
+    const container = link.closest(config.item_selector || "li, tr, article, .item, .post, div");
+    const configuredTitle = config.title_selector ? normalizeWhitespace(container.find(config.title_selector).first().text()) : "";
+    const title = configuredTitle || normalizeWhitespace(link.attr("title") || link.text());
+    if (!title || title.length < 5 || /^(공지사항|notice|상세|더보기|목록|go)$/i.test(title)) return;
+
+    candidates.push({
+      title,
+      href,
+      context: normalizeWhitespace(container.text() || link.parent().text() || title),
+      imageUrl: extractImageUrl($, element, source.url)
+    });
+  });
+
+  return hydrateCandidates(
+    source,
+    uniqueCandidates(candidates).slice(0, config.limit ?? 24),
+    config.detail_limit ?? 10
+  );
+}
+
 async function hydrateCandidates(source: Source, candidates: LinkCandidate[], detailLimit: number) {
   const opportunities: ScrapedOpportunity[] = [];
 

@@ -18,7 +18,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             관리자 비밀번호
             <input name="password" type="password" autoComplete="current-password" required />
           </label>
-          {params.error ? <p className="error-text">비밀번호가 맞지 않습니다.</p> : null}
+          {params.error === "locked" ? <p className="error-text">로그인 시도가 많아 15분 뒤 다시 시도할 수 있습니다.</p> : params.error ? <p className="error-text">비밀번호가 맞지 않습니다.</p> : null}
           <button className="button" type="submit">설정 열기</button>
         </form>
       </section>

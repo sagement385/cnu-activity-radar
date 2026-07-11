@@ -1,11 +1,12 @@
-import { updateSourceScrapedAt, upsertOpportunities, refreshRecommendations, logRun, deleteExpiredOpportunities } from "../repository";
+import { upsertOpportunities, refreshRecommendations, logRun, deleteExpiredOpportunities, getExistingStableKeys, recordSourceRun } from "../repository";
 import { getSettings, getSources } from "../supabase";
 import type { ScrapedOpportunity, Source } from "../types";
-import { scrapeJnuBoard, scrapeJnuEvents } from "./jnu";
+import { scrapeJnuBoard, scrapeJnuEvents, scrapeRegistryBoard } from "./jnu";
 import { scrapeLinkareer } from "./linkareer";
 import { scrapeExternal } from "./external";
 import { curateScrapedOpportunities } from "../curation";
 import { isExpired } from "../date";
+import { mergeDuplicateItems } from "../dedupe";
 
 function describeScrapeError(error: unknown) {
   if (error instanceof Error) {
@@ -29,32 +30,6 @@ function describeScrapeError(error: unknown) {
   return String(error || "unknown scrape error");
 }
 
-function mergeDuplicateItems(items: ScrapedOpportunity[]) {
-  const byStableKey = new Map<string, ScrapedOpportunity>();
-
-  for (const item of items) {
-    const existing = byStableKey.get(item.stableKey);
-    if (!existing) {
-      byStableKey.set(item.stableKey, item);
-      continue;
-    }
-
-    const preferred = item.rawText.length >= existing.rawText.length ? item : existing;
-    const other = preferred === item ? existing : item;
-    byStableKey.set(item.stableKey, {
-      ...other,
-      ...preferred,
-      title: preferred.title.length >= other.title.length ? preferred.title : other.title,
-      summary: preferred.summary ?? other.summary,
-      rawText: preferred.rawText,
-      posterUrl: preferred.posterUrl ?? other.posterUrl,
-      tags: [...new Set([...(other.tags ?? []), ...(preferred.tags ?? [])])]
-    });
-  }
-
-  return [...byStableKey.values()];
-}
-
 export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]> {
   if (source.id === "jnu_events") {
     return scrapeJnuEvents(source);
@@ -64,6 +39,10 @@ export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]
     return scrapeLinkareer(source);
   }
 
+  if (source.crawl_method === "registry_html") {
+    return scrapeRegistryBoard(source);
+  }
+
   if (source.source_type === "external") {
     return scrapeExternal(source);
   }
@@ -71,29 +50,56 @@ export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]
   return scrapeJnuBoard(source);
 }
 
-export async function runScrape() {
+async function safeRecordSourceRun(input: Parameters<typeof recordSourceRun>[0]) {
+  try {
+    await recordSourceRun(input);
+  } catch {
+    // Source logging must not stop other sources from being collected.
+  }
+}
+
+function isSourceDue(source: Source, force = false) {
+  if (force || !source.last_success_at) return true;
+  const elapsedMinutes = (Date.now() - new Date(source.last_success_at).getTime()) / 60000;
+  return elapsedMinutes >= (source.crawl_interval_minutes ?? 360);
+}
+
+export async function runScrape(options: { sourceIds?: string[]; includeDisabled?: boolean; force?: boolean } = {}) {
   let stage = "load settings";
 
   try {
     const settings = await getSettings();
     const sources = await getSources();
     const results: ScrapedOpportunity[] = [];
-    const sourceSummaries: Array<{ sourceId: string; count: number; error?: string }> = [];
+    const sourceSummaries: Array<{ sourceId: string; count: number; newCount?: number; duplicateCount?: number; error?: string }> = [];
+    const successfulRuns: Array<{ sourceId: string; startedAt: string; finishedAt: string; items: ScrapedOpportunity[] }> = [];
 
     stage = "delete expired opportunities";
     const deleted = await deleteExpiredOpportunities();
 
-    for (const source of sources.filter((item) => item.enabled)) {
+    const selectedSources = sources.filter((item) => (item.enabled || options.includeDisabled) && (!options.sourceIds?.length || options.sourceIds.includes(item.id)) && isSourceDue(item, options.force));
+    for (const source of selectedSources) {
+      const startedAt = new Date().toISOString();
       try {
         const items = await scrapeSource(source);
         results.push(...items);
         sourceSummaries.push({ sourceId: source.id, count: items.length });
-        await updateSourceScrapedAt(source.id);
+        successfulRuns.push({ sourceId: source.id, startedAt, finishedAt: new Date().toISOString(), items });
       } catch (error) {
+        const message = describeScrapeError(error);
         sourceSummaries.push({
           sourceId: source.id,
           count: 0,
-          error: describeScrapeError(error)
+          error: message
+        });
+        await safeRecordSourceRun({
+          sourceId: source.id,
+          startedAt,
+          finishedAt: new Date().toISOString(),
+          success: false,
+          collectedCount: 0,
+          errorMessage: message,
+          httpStatus: Number(message.match(/:\s*(\d{3})\b/)?.[1] ?? 0) || null
         });
       }
     }
@@ -105,11 +111,31 @@ export async function runScrape() {
     const curated = await curateScrapedOpportunities(activeResults, settings);
 
     stage = "upsert opportunities";
+    const existingKeys = await getExistingStableKeys(curated.map((item) => item.item));
     const upserted = await upsertOpportunities(curated.map((item) => item.item));
     const recommendationByStableKey = new Map(curated.map((item) => [item.item.stableKey, item.recommendation]));
 
     stage = "refresh recommendations";
     const recommendations = await refreshRecommendations(settings, upserted, recommendationByStableKey);
+
+    stage = "record source runs";
+    for (const run of successfulRuns) {
+      const newCount = run.items.filter((item) => !existingKeys.has(item.stableKey)).length;
+      const summary = sourceSummaries.find((item) => item.sourceId === run.sourceId);
+      if (summary) {
+        summary.newCount = newCount;
+        summary.duplicateCount = Math.max(0, run.items.length - newCount);
+      }
+      await safeRecordSourceRun({
+        sourceId: run.sourceId,
+        startedAt: run.startedAt,
+        finishedAt: run.finishedAt,
+        success: true,
+        collectedCount: run.items.length,
+        newCount,
+        duplicateCount: Math.max(0, run.items.length - newCount)
+      });
+    }
 
     await logRun("scrape", "success", {
       scraped: results.length,

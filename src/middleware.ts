@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ADMIN_COOKIE_NAME, verifyAdminSessionToken } from "./lib/admin-session";
 
-export function middleware(request: NextRequest) {
-  const secret = process.env.DASHBOARD_SECRET;
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const settingsPath = pathname === "/settings" || pathname.startsWith("/settings/");
+  const protectedPath = pathname === "/settings" || pathname.startsWith("/settings/") || pathname.startsWith("/api/admin/");
 
-  if (!secret || secret === "disabled" || !settingsPath || pathname === "/admin" || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
-    return NextResponse.next();
-  }
+  if (!protectedPath) return NextResponse.next();
 
-  const cookieSecret = request.cookies.get("dashboard_secret")?.value;
-  if (cookieSecret === secret) {
-    return NextResponse.next();
-  }
+  const authenticated = await verifyAdminSessionToken(request.cookies.get(ADMIN_COOKIE_NAME)?.value);
+  if (authenticated) return NextResponse.next();
 
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const loginUrl = new URL("/admin", request.url);
   loginUrl.searchParams.set("next", pathname);
@@ -24,5 +18,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!.*\\..*).*)"]
+  matcher: ["/settings/:path*", "/api/admin/:path*"]
 };

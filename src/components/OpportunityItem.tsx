@@ -17,6 +17,7 @@ export function OpportunityItem({ item }: { item: OpportunityWithRecommendation 
           <h3>{item.title}</h3>
           <div className="meta">
             <span>{item.source_name}</span>
+            {(item.source_refs?.length ?? 0) > 1 ? <span>출처 {item.source_refs?.length}곳에서 확인됨</span> : null}
             <span>{item.category}</span>
             <span>마감 {item.deadline ?? "확인 필요"}</span>
             {recommendation?.is_paid ? <span>활동비 가능</span> : null}
@@ -26,6 +27,7 @@ export function OpportunityItem({ item }: { item: OpportunityWithRecommendation 
         <span className={`pill ${status}`}>{label} {recommendation?.score ?? "-"}점</span>
       </div>
       <p className="reason">{reason}</p>
+      {(item.source_refs?.length ?? 0) > 1 ? <p className="reason">확인 출처: {item.source_refs?.map((source) => source.sourceName).join(" · ")}</p> : null}
       {recommendation?.warnings?.length ? <p className="reason">주의: {recommendation.warnings[0]}</p> : null}
       <div className="actions">
         <a href={item.original_url} className="button secondary" target="_blank" rel="noreferrer">

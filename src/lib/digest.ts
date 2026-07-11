@@ -4,7 +4,7 @@ import { runScrape } from "./scrapers";
 import { sendKakaoMessage } from "./kakao";
 import { getSettings } from "./supabase";
 import { getSupabaseAdmin } from "./supabase";
-import type { DigestPeriod, OpportunityRow, OpportunityWithRecommendation } from "./types";
+import type { AppSettings, DigestPeriod, OpportunityRow, OpportunityWithRecommendation } from "./types";
 import { truncate } from "./text";
 
 type RecommendationRow = {
@@ -18,6 +18,7 @@ type RecommendationRow = {
   sns_required: boolean;
   is_paid: boolean;
   is_major_relevant: boolean;
+  score_breakdown?: Record<string, number>;
   last_notified_at: string | null;
   notification_count: number;
 };
@@ -25,15 +26,18 @@ type RecommendationRow = {
 export async function runDigest(period: DigestPeriod = "manual") {
   const scrapeResult = await runScrape();
   const settings = await getSettings();
-  const items = await selectDigestItems(period, settings.preferences.max_digest_items, settings.preferences.deadline_soon_days);
-  const message = buildDigestMessage(period, items, scrapeResult);
+  const items = await selectDigestItems(period, settings);
+  const message = buildDigestMessage(period, items, scrapeResult, settings.notification.alert_types?.includes("collection_failure") ?? false);
   const opportunityIds = items.map((item) => item.id);
   let sendResult: unknown = null;
   let success = true;
   let errorMessage = "";
 
   try {
-    if (settings.notification.enabled && items.length > 0) {
+    const periodEnabled = period === "morning"
+      ? settings.notification.morning_enabled !== false
+      : period === "evening" ? settings.notification.evening_enabled !== false : true;
+    if (settings.notification.enabled && periodEnabled && items.length > 0) {
       sendResult = await sendKakaoMessage(message);
       await markRecommendationsNotified(opportunityIds);
     }
@@ -64,13 +68,15 @@ export async function runDigest(period: DigestPeriod = "manual") {
   };
 }
 
-export async function selectDigestItems(period: DigestPeriod, maxItems: number, deadlineSoonDays: number) {
+export async function selectDigestItems(period: DigestPeriod, settings: AppSettings) {
   const supabase = getSupabaseAdmin();
+  const allowedStatuses = settings.notification.include_maybe ? ["recommend", "maybe"] : ["recommend"];
   const { data: recs, error: recError } = await supabase
     .from("recommendations")
     .select("*")
     .eq("settings_id", "default")
-    .in("status", period === "evening" ? ["recommend", "maybe"] : ["recommend"])
+    .in("status", allowedStatuses)
+    .gte("score", settings.notification.minimum_score ?? settings.recommendation?.min_recommend_score ?? 70)
     .order("score", { ascending: false })
     .limit(80);
 
@@ -120,21 +126,28 @@ export async function selectDigestItems(period: DigestPeriod, maxItems: number, 
       return false;
     }
 
+    const duplicateAllowed = settings.notification.prevent_duplicates === false;
     if (period === "evening") {
-      return (remaining !== null && remaining <= deadlineSoonDays && hoursSinceNotify >= 20) || hoursSinceNotify === Infinity;
+      return (remaining !== null && remaining <= settings.preferences.deadline_soon_days && (duplicateAllowed || hoursSinceNotify >= 20)) || hoursSinceNotify === Infinity;
     }
 
-    return hoursSinceNotify === Infinity;
+    return duplicateAllowed || hoursSinceNotify === Infinity;
   });
 
-  return filtered.slice(0, maxItems);
+  return filtered.slice(0, settings.preferences.max_digest_items);
 }
 
-export function buildDigestMessage(period: DigestPeriod, items: OpportunityWithRecommendation[], scrapeResult?: { scraped: number; upserted: number }) {
+export function buildDigestMessage(
+  period: DigestPeriod,
+  items: OpportunityWithRecommendation[],
+  scrapeResult?: { scraped: number; upserted: number; sources?: Array<{ sourceId: string; error?: string }> },
+  includeCollectionFailures = false
+) {
   const header = period === "morning" ? "[아침 활동 레이더]" : period === "evening" ? "[저녁 마감 체크]" : "[활동 레이더]";
+  const failedSources = includeCollectionFailures ? (scrapeResult?.sources ?? []).filter((source) => source.error) : [];
 
   if (!items.length) {
-    return `${header}\n\n오늘 새로 보낼 만한 맞춤 공고는 아직 없어요.\n수집 공고: ${scrapeResult?.scraped ?? 0}개`;
+    return `${header}\n\n오늘 새로 보낼 만한 맞춤 공고는 아직 없어요.\n수집 공고: ${scrapeResult?.scraped ?? 0}개${failedSources.length ? `\n수집 확인 필요: ${failedSources.map((source) => source.sourceId).join(", ")}` : ""}`;
   }
 
   const lines = [
@@ -158,6 +171,9 @@ export function buildDigestMessage(period: DigestPeriod, items: OpportunityWithR
     lines.push("");
   });
 
+  if (failedSources.length) {
+    lines.push(`수집 확인 필요: ${failedSources.map((source) => source.sourceId).join(", ")}`);
+  }
   return lines.join("\n").trim();
 }
 

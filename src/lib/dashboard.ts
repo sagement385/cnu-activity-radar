@@ -13,6 +13,7 @@ type RecommendationRow = {
   sns_required: boolean;
   is_paid: boolean;
   is_major_relevant: boolean;
+  score_breakdown?: Record<string, number>;
   last_notified_at: string | null;
   notification_count: number;
 };
@@ -20,18 +21,26 @@ type RecommendationRow = {
 export async function getDashboardData() {
   try {
     const supabase = getSupabaseAdmin();
-    const [{ data: recs }, { data: opportunities }, { data: logs }, { data: settings }, { data: runLogs }] = await Promise.all([
+    const [{ data: recs }, { data: opportunities }, { data: logs }, { data: settings }, { data: runLogs }, { data: sourceRefs }] = await Promise.all([
       supabase.from("recommendations").select("*").eq("settings_id", "default").order("score", { ascending: false }).limit(120),
       supabase.from("opportunities").select("*").or(`deadline.is.null,deadline.gte.${toDateOnly(todayKst())}`).order("last_seen_at", { ascending: false }).limit(120),
       supabase.from("notification_logs").select("*").order("sent_at", { ascending: false }).limit(8),
       supabase.from("app_settings").select("*").eq("id", "default").single(),
-      supabase.from("run_logs").select("created_at").eq("run_type", "scrape").eq("status", "success").order("created_at", { ascending: false }).limit(1)
+      supabase.from("run_logs").select("created_at").eq("run_type", "scrape").eq("status", "success").order("created_at", { ascending: false }).limit(1),
+      supabase.from("opportunity_sources").select("opportunity_id,source_id,source_name,source_url,original_url").limit(500)
     ]);
 
     const recommendations = (recs ?? []) as RecommendationRow[];
     const recommendationByOpportunityId = new Map(recommendations.map((rec) => [rec.opportunity_id, rec]));
+    const refsByOpportunity = new Map<string, Array<{ sourceId: string; sourceName: string; sourceUrl: string; originalUrl: string }>>();
+    for (const ref of sourceRefs ?? []) {
+      const refs = refsByOpportunity.get(ref.opportunity_id) ?? [];
+      refs.push({ sourceId: ref.source_id, sourceName: ref.source_name, sourceUrl: ref.source_url, originalUrl: ref.original_url });
+      refsByOpportunity.set(ref.opportunity_id, refs);
+    }
     const rows = ((opportunities ?? []) as OpportunityRow[]).map((opportunity) => ({
       ...opportunity,
+      source_refs: refsByOpportunity.get(opportunity.id) ?? [],
       recommendation: recommendationByOpportunityId.get(opportunity.id)
     })) as OpportunityWithRecommendation[];
 

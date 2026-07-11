@@ -27,6 +27,8 @@ export async function curateScrapedOpportunities(items: ScrapedOpportunity[], se
 
     if (judgement?.exclude && hardExcludeReasons(enriched, settings).length === 0) {
       recommendation.score -= Math.max(70, Math.round(judgement.confidence * 40));
+      recommendation.score = Math.max(0, recommendation.score);
+      recommendation.score_breakdown = { ...recommendation.score_breakdown, gemini_exclusion: -Math.max(70, Math.round(judgement.confidence * 40)), total_score: recommendation.score };
       recommendation.status = "exclude";
       recommendation.excluded_reasons = Array.from(new Set([
         ...recommendation.excluded_reasons,
