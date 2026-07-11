@@ -34,8 +34,9 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
 }
 
 export function extractImageUrl($: CheerioAPI, element: Parameters<CheerioAPI>[0], baseUrl: string) {
-  const container = $(element).closest("li, article, .card, .event, tr, section, div");
-  const images = [...$(element).find("img").toArray(), ...container.find("img").toArray()];
+  const root = $(element);
+  const scopes = [...root.toArray(), ...root.parents().slice(0, 8).toArray()];
+  const images = scopes.flatMap((scope) => $(scope).find("img").toArray());
 
   for (const imageElement of images) {
     const image = $(imageElement);
@@ -58,7 +59,7 @@ export function extractImageUrl($: CheerioAPI, element: Parameters<CheerioAPI>[0
     }
   }
 
-  const html = `${$(element).html() ?? ""} ${container.html() ?? ""}`;
+  const html = scopes.map((scope) => $(scope).html() ?? "").join(" ");
   const htmlMatches = html.matchAll(/(?:data-src|data-original|data-lazy-src|src|srcset|srcSet|data-srcset|data-srcSet)=["']([^"']+)/gi);
 
   for (const match of htmlMatches) {
