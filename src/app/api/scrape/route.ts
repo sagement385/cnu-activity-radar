@@ -13,7 +13,16 @@ function describeError(error: unknown) {
 
   if (error && typeof error === "object") {
     const value = error as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
-    return [value.message, value.code, value.details, value.hint].filter(Boolean).join(" | ") || "database scrape failed";
+    const message = [value.message, value.code, value.details, value.hint].filter(Boolean).join(" | ");
+    if (message) {
+      return message;
+    }
+
+    try {
+      return JSON.stringify(error, Object.getOwnPropertyNames(error));
+    } catch {
+      return "database scrape failed";
+    }
   }
 
   return String(error || "database scrape failed");

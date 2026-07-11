@@ -3,6 +3,28 @@ import { getSupabaseAdmin } from "./supabase";
 import type { AppSettings, OpportunityRow, ScrapedOpportunity } from "./types";
 import { toDateOnly, todayKst } from "./date";
 
+function describeDatabaseError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    const message = [value.message, value.code, value.details, value.hint].filter(Boolean).join(" | ");
+    if (message) {
+      return message;
+    }
+
+    try {
+      return JSON.stringify(error, Object.getOwnPropertyNames(error));
+    } catch {
+      return "unknown database error";
+    }
+  }
+
+  return String(error || "unknown database error");
+}
+
 export async function upsertOpportunities(items: ScrapedOpportunity[]) {
   if (!items.length) {
     return [];
@@ -11,7 +33,13 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
   const supabase = getSupabaseAdmin();
   const now = new Date().toISOString();
   const stableKeys = items.map((item) => item.stableKey);
-  const { data: existingRows } = await supabase.from("opportunities").select("stable_key, poster_url").in("stable_key", stableKeys);
+  const { data: existingRows, error: existingRowsError } = await supabase
+    .from("opportunities")
+    .select("stable_key, poster_url")
+    .in("stable_key", stableKeys);
+  if (existingRowsError) {
+    throw new Error(`load existing opportunities failed: ${describeDatabaseError(existingRowsError)}`);
+  }
   const existingPosterByKey = new Map((existingRows ?? []).map((row) => [row.stable_key as string, row.poster_url as string | null]));
   const rows = items.map((item) => ({
     stable_key: item.stableKey,
@@ -43,7 +71,7 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
     .select("*");
 
   if (error) {
-    throw error;
+    throw new Error(`upsert opportunities failed: ${describeDatabaseError(error)}`);
   }
 
   return (data ?? []) as OpportunityRow[];
@@ -80,7 +108,7 @@ export async function refreshRecommendations(settings: AppSettings, opportunitie
     .select("*");
 
   if (error) {
-    throw error;
+    throw new Error(`refresh recommendations failed: ${describeDatabaseError(error)}`);
   }
 
   return data ?? [];
@@ -92,7 +120,7 @@ export async function deleteExpiredOpportunities() {
   const { data, error } = await supabase.from("opportunities").delete().lt("deadline", today).select("id");
 
   if (error) {
-    throw error;
+    throw new Error(`delete expired opportunities failed: ${describeDatabaseError(error)}`);
   }
 
   return data?.length ?? 0;
