@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ACTIVITY_CATEGORIES, DEFAULT_SETTINGS, INTEREST_PRESETS } from "@/lib/defaults";
 import type { AppSettings, CategoryMode, InterestLevel, ScheduleItem, Source } from "@/lib/types";
 import type { CrawlRunView } from "@/lib/admin-data";
-import { saveSettings, type SaveSettingsState } from "@/app/settings/actions";
+import { runSourceNow, saveSettings, sendTestNotificationAction, type SaveSettingsState } from "@/app/settings/actions";
 
 type SourceView = Source & { stored_count: number };
 type TabId = "profile" | "conditions" | "interests" | "schedule" | "sources" | "notification" | "scores" | "logs" | "advanced";
@@ -146,11 +146,8 @@ export function SettingsControlPanel({ initialSettings, initialSources, runs, la
   const runSource = async (sourceId: string) => {
     setSourceStatus((current) => ({ ...current, [sourceId]: "수집 중" }));
     try {
-      const response = await fetch(`/api/admin/sources/${encodeURIComponent(sourceId)}/scrape`, { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error ?? "수집 실패");
-      const summary = payload.result?.sources?.find((item: { sourceId: string }) => item.sourceId === sourceId);
-      setSourceStatus((current) => ({ ...current, [sourceId]: summary?.error ? `실패: ${summary.error}` : `완료: ${summary?.count ?? 0}건` }));
+      const result = await runSourceNow(sourceId);
+      setSourceStatus((current) => ({ ...current, [sourceId]: result.message }));
       router.refresh();
     } catch (error) {
       setSourceStatus((current) => ({ ...current, [sourceId]: error instanceof Error ? error.message : "수집 실패" }));
@@ -159,10 +156,8 @@ export function SettingsControlPanel({ initialSettings, initialSources, runs, la
   const testNotification = async () => {
     setTestStatus("전송 중");
     try {
-      const response = await fetch("/api/admin/test-notification", { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error ?? "전송 실패");
-      setTestStatus(payload.message);
+      const result = await sendTestNotificationAction();
+      setTestStatus(result.message);
     } catch (error) {
       setTestStatus(error instanceof Error ? error.message : "전송 실패");
     }

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ADMIN_COOKIE_NAME, verifyAdminSessionToken } from "@/lib/admin-session";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { runScrape } from "@/lib/scrapers";
+import { sendKakaoMessage } from "@/lib/kakao";
 
 export type SaveSettingsState = {
   ok: boolean;
@@ -140,5 +142,33 @@ export async function saveSettings(_previous: SaveSettingsState, formData: FormD
     if (error instanceof SyntaxError) return { ok: false, message: "고급 JSON 문법이 올바르지 않습니다.", savedAt: null };
     if (error instanceof z.ZodError) return { ok: false, message: error.issues[0]?.message ?? "입력값을 확인해 주세요.", savedAt: null };
     return { ok: false, message: error instanceof Error ? error.message : "설정을 저장하지 못했습니다.", savedAt: null };
+  }
+}
+
+export async function runSourceNow(sourceId: string) {
+  if (!(await isAuthorized())) return { ok: false, message: "관리자 세션이 만료되었습니다." };
+  if (!/^[a-z0-9_-]{3,80}$/.test(sourceId)) return { ok: false, message: "수집처 ID가 올바르지 않습니다." };
+
+  try {
+    const result = await runScrape({ sourceIds: [sourceId], includeDisabled: true, force: true });
+    const summary = result.sources.find((item) => item.sourceId === sourceId);
+    revalidatePath("/");
+    revalidatePath("/opportunities");
+    revalidatePath("/settings");
+    return summary?.error
+      ? { ok: false, message: `실패: ${summary.error}` }
+      : { ok: true, message: `완료: ${summary?.count ?? 0}건 수집, ${summary?.newCount ?? 0}건 신규` };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "수집 실패" };
+  }
+}
+
+export async function sendTestNotificationAction() {
+  if (!(await isAuthorized())) return { ok: false, message: "관리자 세션이 만료되었습니다." };
+  try {
+    await sendKakaoMessage("[CNU Activity Radar]\n테스트 알림입니다. 카카오톡 연결이 정상적으로 동작합니다.");
+    return { ok: true, message: "테스트 알림을 보냈습니다." };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "테스트 알림 실패" };
   }
 }
