@@ -25,14 +25,41 @@ function describeDatabaseError(error: unknown) {
   return String(error || "unknown database error");
 }
 
+function mergeDuplicateItems(items: ScrapedOpportunity[]) {
+  const byStableKey = new Map<string, ScrapedOpportunity>();
+
+  for (const item of items) {
+    const existing = byStableKey.get(item.stableKey);
+    if (!existing) {
+      byStableKey.set(item.stableKey, item);
+      continue;
+    }
+
+    const preferred = item.rawText.length >= existing.rawText.length ? item : existing;
+    const other = preferred === item ? existing : item;
+    byStableKey.set(item.stableKey, {
+      ...other,
+      ...preferred,
+      title: preferred.title.length >= other.title.length ? preferred.title : other.title,
+      summary: preferred.summary ?? other.summary,
+      rawText: preferred.rawText,
+      posterUrl: preferred.posterUrl ?? other.posterUrl,
+      tags: [...new Set([...(other.tags ?? []), ...(preferred.tags ?? [])])]
+    });
+  }
+
+  return [...byStableKey.values()];
+}
+
 export async function upsertOpportunities(items: ScrapedOpportunity[]) {
-  if (!items.length) {
+  const uniqueItems = mergeDuplicateItems(items);
+  if (!uniqueItems.length) {
     return [];
   }
 
   const supabase = getSupabaseAdmin();
   const now = new Date().toISOString();
-  const stableKeys = items.map((item) => item.stableKey);
+  const stableKeys = uniqueItems.map((item) => item.stableKey);
   const { data: existingRows, error: existingRowsError } = await supabase
     .from("opportunities")
     .select("stable_key, poster_url")
@@ -41,7 +68,7 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
     throw new Error(`load existing opportunities failed: ${describeDatabaseError(existingRowsError)}`);
   }
   const existingPosterByKey = new Map((existingRows ?? []).map((row) => [row.stable_key as string, row.poster_url as string | null]));
-  const rows = items.map((item) => ({
+  const rows = uniqueItems.map((item) => ({
     stable_key: item.stableKey,
     title: item.title,
     source_id: item.sourceId,

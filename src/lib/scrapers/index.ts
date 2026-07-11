@@ -29,6 +29,32 @@ function describeScrapeError(error: unknown) {
   return String(error || "unknown scrape error");
 }
 
+function mergeDuplicateItems(items: ScrapedOpportunity[]) {
+  const byStableKey = new Map<string, ScrapedOpportunity>();
+
+  for (const item of items) {
+    const existing = byStableKey.get(item.stableKey);
+    if (!existing) {
+      byStableKey.set(item.stableKey, item);
+      continue;
+    }
+
+    const preferred = item.rawText.length >= existing.rawText.length ? item : existing;
+    const other = preferred === item ? existing : item;
+    byStableKey.set(item.stableKey, {
+      ...other,
+      ...preferred,
+      title: preferred.title.length >= other.title.length ? preferred.title : other.title,
+      summary: preferred.summary ?? other.summary,
+      rawText: preferred.rawText,
+      posterUrl: preferred.posterUrl ?? other.posterUrl,
+      tags: [...new Set([...(other.tags ?? []), ...(preferred.tags ?? [])])]
+    });
+  }
+
+  return [...byStableKey.values()];
+}
+
 export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]> {
   if (source.id === "jnu_events") {
     return scrapeJnuEvents(source);
@@ -73,7 +99,7 @@ export async function runScrape() {
     }
 
     stage = "filter expired scrape results";
-    const activeResults = results.filter((item) => !item.deadline || !isExpired(item.deadline));
+    const activeResults = mergeDuplicateItems(results.filter((item) => !item.deadline || !isExpired(item.deadline)));
 
     stage = "curate scrape results";
     const curated = await curateScrapedOpportunities(activeResults, settings);
