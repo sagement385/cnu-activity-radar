@@ -23,14 +23,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const result =
-      useSupabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-        ? await runScrape().catch(async () => runLiveScrape(await getSettings()))
-        : await runLiveScrape(await getSettings());
+    let storageError: string | null = null;
+    let result;
+
+    if (useSupabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        result = await runScrape();
+      } catch (error) {
+        storageError = error instanceof Error ? error.message : "database scrape failed";
+        console.error("Supabase scrape failed", error);
+        result = await runLiveScrape(await getSettings());
+      }
+    } else {
+      result = await runLiveScrape(await getSettings());
+    }
 
     return NextResponse.json({
       ok: true,
       skipped: false,
+      storageError,
       result
     });
   } catch (error) {

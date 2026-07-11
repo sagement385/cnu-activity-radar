@@ -35,14 +35,16 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
 
 export function extractImageUrl($: CheerioAPI, element: Parameters<CheerioAPI>[0], baseUrl: string) {
   const container = $(element).closest("li, article, .card, .event, tr, section, div");
-  const image = container.find("img").first();
-  const rawUrl = image.attr("data-src") ?? image.attr("data-original") ?? image.attr("src") ?? "";
+  const directImage = $(element).find("img").first();
+  const image = directImage.length ? directImage : container.find("img").first();
+  const rawUrl = image.attr("data-src") ?? image.attr("data-original") ?? image.attr("data-lazy-src") ?? image.attr("src") ?? image.attr("srcset") ?? image.attr("data-srcset") ?? "";
+  const imageUrl = rawUrl.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
 
-  if (!rawUrl || rawUrl.startsWith("data:")) {
+  if (!imageUrl || imageUrl.startsWith("data:")) {
     return null;
   }
 
-  return normalizeUrl(rawUrl, baseUrl);
+  return normalizeUrl(imageUrl, baseUrl);
 }
 
 export async function fetchDetailData(url: string) {
@@ -50,11 +52,18 @@ export async function fetchDetailData(url: string) {
     const html = await fetchHtml(url);
     const $ = loadHtml(html);
     const imageElement = $("meta[property='og:image'], meta[name='twitter:image']").first();
-    const rawImageUrl = imageElement.attr("content") ?? $("img").first().attr("src") ?? "";
+    const rawImageUrl =
+      imageElement.attr("content") ??
+      $("img").first().attr("data-src") ??
+      $("img").first().attr("data-original") ??
+      $("img").first().attr("src") ??
+      $("img").first().attr("srcset") ??
+      "";
+    const imageUrl = rawImageUrl.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
 
     return {
       text: pageText(html).slice(0, 5000),
-      imageUrl: rawImageUrl && !rawImageUrl.startsWith("data:") ? normalizeUrl(rawImageUrl, url) : null
+      imageUrl: imageUrl && !imageUrl.startsWith("data:") ? normalizeUrl(imageUrl, url) : null
     };
   } catch {
     return { text: "", imageUrl: null };
