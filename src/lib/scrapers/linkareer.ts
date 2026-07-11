@@ -1,6 +1,6 @@
 import type { ScrapedOpportunity, Source } from "../types";
 import { normalizeWhitespace, normalizeUrl, stripHtml } from "../text";
-import { buildOpportunity, fetchDetailText, LinkCandidate, uniqueCandidates } from "./common";
+import { buildOpportunity, extractImageUrl, fetchDetailData, LinkCandidate, uniqueCandidates } from "./common";
 import { fetchHtml, loadHtml } from "./fetch";
 
 const SEARCH_URLS = [
@@ -25,7 +25,7 @@ export async function scrapeLinkareer(source: Source): Promise<ScrapedOpportunit
         const context = normalizeWhitespace(link.closest("li, article, div").text());
 
         if (title.length >= 4) {
-          candidates.push({ title, href, context });
+          candidates.push({ title, href, context, imageUrl: extractImageUrl($, element, url) });
         }
       });
     } catch {
@@ -37,8 +37,8 @@ export async function scrapeLinkareer(source: Source): Promise<ScrapedOpportunit
   const opportunities: ScrapedOpportunity[] = [];
 
   for (const [index, candidate] of unique.entries()) {
-    const detailText = index < 10 ? await fetchDetailText(candidate.href) : "";
-    opportunities.push(buildOpportunity(source, candidate, detailText));
+    const detail = index < 10 ? await fetchDetailData(candidate.href) : { text: "", imageUrl: null };
+    opportunities.push(buildOpportunity(source, candidate, detail.text, detail.imageUrl));
   }
 
   return opportunities;

@@ -1,6 +1,6 @@
 import type { ScrapedOpportunity, Source } from "../types";
 import { normalizeWhitespace, normalizeUrl } from "../text";
-import { buildOpportunity, fetchDetailText, LinkCandidate, uniqueCandidates } from "./common";
+import { buildOpportunity, extractImageUrl, fetchDetailData, LinkCandidate, uniqueCandidates } from "./common";
 import { fetchHtml, loadHtml } from "./fetch";
 
 const SOURCE_RULES: Record<string, RegExp> = {
@@ -25,15 +25,15 @@ export async function scrapeExternal(source: Source): Promise<ScrapedOpportunity
 
     const row = link.closest("li, tr, article, section, div");
     const context = normalizeWhitespace(row.text() || title);
-    candidates.push({ title, href: normalizeUrl(href, source.url), context });
+    candidates.push({ title, href: normalizeUrl(href, source.url), context, imageUrl: extractImageUrl($, element, source.url) });
   });
 
   const unique = uniqueCandidates(candidates).slice(0, 36);
   const opportunities: ScrapedOpportunity[] = [];
 
   for (const [index, candidate] of unique.entries()) {
-    const detailText = index < 18 ? await fetchDetailText(candidate.href) : "";
-    opportunities.push(buildOpportunity(source, candidate, detailText));
+    const detail = index < 18 ? await fetchDetailData(candidate.href) : { text: "", imageUrl: null };
+    opportunities.push(buildOpportunity(source, candidate, detail.text, detail.imageUrl));
   }
 
   return opportunities;

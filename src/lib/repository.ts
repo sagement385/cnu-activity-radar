@@ -10,6 +10,9 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
 
   const supabase = getSupabaseAdmin();
   const now = new Date().toISOString();
+  const stableKeys = items.map((item) => item.stableKey);
+  const { data: existingRows } = await supabase.from("opportunities").select("stable_key, poster_url").in("stable_key", stableKeys);
+  const existingPosterByKey = new Map((existingRows ?? []).map((row) => [row.stable_key as string, row.poster_url as string | null]));
   const rows = items.map((item) => ({
     stable_key: item.stableKey,
     title: item.title,
@@ -17,6 +20,7 @@ export async function upsertOpportunities(items: ScrapedOpportunity[]) {
     source_name: item.sourceName,
     source_url: item.sourceUrl,
     original_url: item.originalUrl,
+    poster_url: item.posterUrl ?? existingPosterByKey.get(item.stableKey) ?? null,
     organization: item.organization ?? null,
     category: item.category ?? classifyCategory(`${item.title} ${item.rawText}`),
     location: item.location ?? null,

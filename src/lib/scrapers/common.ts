@@ -3,15 +3,16 @@ import type { ScrapedOpportunity, Source } from "../types";
 import { extractDeadline } from "../date";
 import { classifyCategory } from "../classifier";
 import { normalizeUrl, normalizeWhitespace, stableHash, truncate } from "../text";
-import { fetchHtml, pageText } from "./fetch";
+import { fetchHtml, loadHtml, pageText } from "./fetch";
 
 export type LinkCandidate = {
   title: string;
   href: string;
   context: string;
+  imageUrl?: string | null;
 };
 
-export function buildOpportunity(source: Source, candidate: LinkCandidate, detailText?: string): ScrapedOpportunity {
+export function buildOpportunity(source: Source, candidate: LinkCandidate, detailText?: string, detailImageUrl?: string | null): ScrapedOpportunity {
   const originalUrl = normalizeUrl(candidate.href, source.url);
   const rawText = normalizeWhitespace(`${candidate.title} ${candidate.context} ${detailText ?? ""} ${source.name}`);
   const category = classifyCategory(`${candidate.title} ${candidate.context} ${source.name}`);
@@ -23,6 +24,7 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
     sourceName: source.name,
     sourceUrl: source.url,
     originalUrl,
+    posterUrl: detailImageUrl ?? candidate.imageUrl ?? null,
     category,
     deadline: extractDeadline(rawText),
     summary: truncate(rawText, 220),
@@ -31,13 +33,36 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
   };
 }
 
-export async function fetchDetailText(url: string) {
+export function extractImageUrl($: CheerioAPI, element: Parameters<CheerioAPI>[0], baseUrl: string) {
+  const container = $(element).closest("li, article, .card, .event, tr, section, div");
+  const image = container.find("img").first();
+  const rawUrl = image.attr("data-src") ?? image.attr("data-original") ?? image.attr("src") ?? "";
+
+  if (!rawUrl || rawUrl.startsWith("data:")) {
+    return null;
+  }
+
+  return normalizeUrl(rawUrl, baseUrl);
+}
+
+export async function fetchDetailData(url: string) {
   try {
     const html = await fetchHtml(url);
-    return pageText(html).slice(0, 5000);
+    const $ = loadHtml(html);
+    const imageElement = $("meta[property='og:image'], meta[name='twitter:image']").first();
+    const rawImageUrl = imageElement.attr("content") ?? $("img").first().attr("src") ?? "";
+
+    return {
+      text: pageText(html).slice(0, 5000),
+      imageUrl: rawImageUrl && !rawImageUrl.startsWith("data:") ? normalizeUrl(rawImageUrl, url) : null
+    };
   } catch {
-    return "";
+    return { text: "", imageUrl: null };
   }
+}
+
+export async function fetchDetailText(url: string) {
+  return (await fetchDetailData(url)).text;
 }
 
 export function uniqueCandidates(candidates: LinkCandidate[]) {

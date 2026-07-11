@@ -58,6 +58,7 @@ export type ScrapedOpportunity = {
   sourceName: string;
   sourceUrl: string;
   originalUrl: string;
+  posterUrl?: string | null;
   organization?: string | null;
   category?: string;
   location?: string | null;
@@ -80,6 +81,7 @@ export type OpportunityRow = {
   source_name: string;
   source_url: string;
   original_url: string;
+  poster_url: string | null;
   organization: string | null;
   category: string;
   location: string | null;

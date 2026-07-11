@@ -1,76 +1,10 @@
+import { RadarDashboard } from "@/components/RadarDashboard";
 import { getDashboardData } from "@/lib/dashboard";
-import { OpportunityItem } from "@/components/OpportunityItem";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const data = await getDashboardData();
-  const recommended = data.rows
-    .filter((item) => item.recommendation?.status === "recommend")
-    .sort((a, b) => (b.recommendation?.score ?? 0) - (a.recommendation?.score ?? 0))
-    .slice(0, 8);
-  const maybe = data.rows
-    .filter((item) => item.recommendation?.status === "maybe")
-    .sort((a, b) => (b.recommendation?.score ?? 0) - (a.recommendation?.score ?? 0))
-    .slice(0, 5);
-  const categoryGroups = Array.from(new Set(recommended.map((item) => item.category)));
 
-  return (
-    <>
-      <section className="page-head">
-        <div>
-          <p className="eyebrow">맞춤 공고 큐레이터</p>
-          <h1>오늘 볼 만한 활동</h1>
-          <p className="muted">전남대, 기계공학부, 링커리어 공고를 훑고 네 조건에 맞는 것만 추려요.</p>
-        </div>
-        <a className="button" href="/opportunities">
-          전체 보기
-        </a>
-      </section>
-
-      {!data.ok ? (
-        <section className="empty">
-          저장된 추천을 불러오지 못했습니다. 위 스크랩 결과는 실시간으로 확인할 수 있습니다.
-          <br />
-          오류: {data.error}
-        </section>
-      ) : null}
-
-      <section className="grid stats">
-        <div className="stat">
-          추천
-          <strong>{data.stats.recommend}</strong>
-        </div>
-        <div className="stat">
-          검토
-          <strong>{data.stats.maybe}</strong>
-        </div>
-        <div className="stat">
-          제외
-          <strong>{data.stats.exclude}</strong>
-        </div>
-        <div className="stat">
-          최근 공고
-          <strong>{data.stats.total}</strong>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>추천 공고</h2>
-        {categoryGroups.length ? categoryGroups.map((category) => (
-          <div className="category-group" key={category}>
-            <h3>{category}</h3>
-            <div className="list">{recommended.filter((item) => item.category === category).map((item) => <OpportunityItem key={item.id} item={item} />)}</div>
-          </div>
-        )) : <div className="empty">스크랩이 끝나면 맞춤 후보를 이곳에 채웁니다.</div>}
-      </section>
-
-      <section className="panel">
-        <h2>검토 필요</h2>
-        <div className="list">
-          {maybe.length ? maybe.map((item) => <OpportunityItem key={item.id} item={item} />) : <div className="empty">검토할 공고가 없습니다.</div>}
-        </div>
-      </section>
-    </>
-  );
+  return <RadarDashboard rows={data.rows} stats={data.stats} lastScrapeAt={data.lastScrapeAt} error={!data.ok ? data.error : undefined} />;
 }

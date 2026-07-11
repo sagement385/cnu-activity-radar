@@ -20,11 +20,12 @@ type RecommendationRow = {
 export async function getDashboardData() {
   try {
     const supabase = getSupabaseAdmin();
-    const [{ data: recs }, { data: opportunities }, { data: logs }, { data: settings }] = await Promise.all([
+    const [{ data: recs }, { data: opportunities }, { data: logs }, { data: settings }, { data: runLogs }] = await Promise.all([
       supabase.from("recommendations").select("*").eq("settings_id", "default").order("score", { ascending: false }).limit(120),
       supabase.from("opportunities").select("*").or(`deadline.is.null,deadline.gte.${toDateOnly(todayKst())}`).order("last_seen_at", { ascending: false }).limit(120),
       supabase.from("notification_logs").select("*").order("sent_at", { ascending: false }).limit(8),
-      supabase.from("app_settings").select("*").eq("id", "default").single()
+      supabase.from("app_settings").select("*").eq("id", "default").single(),
+      supabase.from("run_logs").select("created_at").eq("run_type", "scrape").eq("status", "success").order("created_at", { ascending: false }).limit(1)
     ]);
 
     const recommendations = (recs ?? []) as RecommendationRow[];
@@ -39,6 +40,7 @@ export async function getDashboardData() {
       rows,
       logs: logs ?? [],
       settings: settings ?? null,
+      lastScrapeAt: runLogs?.[0]?.created_at ?? null,
       stats: {
         recommend: recommendations.filter((rec) => rec.status === "recommend").length,
         maybe: recommendations.filter((rec) => rec.status === "maybe").length,
@@ -53,6 +55,7 @@ export async function getDashboardData() {
       rows: [],
       logs: [],
       settings: null,
+      lastScrapeAt: null,
       stats: {
         recommend: 0,
         maybe: 0,

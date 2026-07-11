@@ -8,6 +8,10 @@ export function OpportunityItem({ item }: { item: OpportunityWithRecommendation 
 
   return (
     <article className="opportunity">
+      <div className="opportunity-poster">
+        <span>{item.category.slice(0, 2)}</span>
+        {item.poster_url ? <img src={item.poster_url} alt="공고 포스터" loading="lazy" /> : null}
+      </div>
       <div className="opportunity-head">
         <div>
           <h3>{item.title}</h3>

@@ -1,6 +1,6 @@
 import type { ScrapedOpportunity, Source } from "../types";
 import { normalizeWhitespace } from "../text";
-import { buildOpportunity, fetchDetailText, LinkCandidate, uniqueCandidates } from "./common";
+import { buildOpportunity, extractImageUrl, fetchDetailData, LinkCandidate, uniqueCandidates } from "./common";
 import { fetchHtml, loadHtml } from "./fetch";
 
 export async function scrapeJnuEvents(source: Source): Promise<ScrapedOpportunity[]> {
@@ -15,7 +15,7 @@ export async function scrapeJnuEvents(source: Source): Promise<ScrapedOpportunit
     const container = link.closest("li, article, .event, div");
     const context = normalizeWhitespace(container.text());
 
-    candidates.push({ title, href, context });
+    candidates.push({ title, href, context, imageUrl: extractImageUrl($, element, source.url) });
   });
 
   const fallbackCandidates = uniqueCandidates(candidates).slice(0, 24);
@@ -44,7 +44,7 @@ export async function scrapeJnuBoard(source: Source): Promise<ScrapedOpportunity
     const context = normalizeWhitespace(row.text());
 
     if (title && !title.includes("RSS") && !title.includes("목록")) {
-      candidates.push({ title, href, context });
+      candidates.push({ title, href, context, imageUrl: extractImageUrl($, element, source.url) });
     }
   });
 
@@ -55,8 +55,8 @@ async function hydrateCandidates(source: Source, candidates: LinkCandidate[], de
   const opportunities: ScrapedOpportunity[] = [];
 
   for (const [index, candidate] of candidates.entries()) {
-    const detailText = index < detailLimit ? await fetchDetailText(candidate.href) : "";
-    opportunities.push(buildOpportunity(source, candidate, detailText));
+    const detail = index < detailLimit ? await fetchDetailData(candidate.href) : { text: "", imageUrl: null };
+    opportunities.push(buildOpportunity(source, candidate, detail.text, detail.imageUrl));
   }
 
   return opportunities;

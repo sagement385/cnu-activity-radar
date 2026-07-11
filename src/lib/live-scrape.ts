@@ -31,6 +31,7 @@ export async function runLiveScrape(settings: AppSettings = DEFAULT_SETTINGS) {
       source_name: item.sourceName,
       source_url: item.sourceUrl,
       original_url: item.originalUrl,
+      poster_url: item.posterUrl ?? null,
       organization: item.organization ?? null,
       category: item.category ?? "대외활동",
       location: item.location ?? null,

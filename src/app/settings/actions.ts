@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -12,6 +14,11 @@ function splitLines(value: FormDataEntryValue | null) {
 }
 
 export async function saveSettings(formData: FormData) {
+  const secret = process.env.DASHBOARD_SECRET;
+  if (secret && secret !== "disabled" && (await cookies()).get("dashboard_secret")?.value !== secret) {
+    redirect("/admin?next=/settings");
+  }
+
   const scheduleText = String(formData.get("schedule") ?? "");
   const schedule = scheduleText ? JSON.parse(scheduleText) : DEFAULT_SETTINGS.schedule;
   const notification = {

@@ -2,8 +2,9 @@ import { loginAdmin } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   const params = await searchParams;
+  const nextPath = params.next?.startsWith("/") && !params.next.startsWith("//") ? params.next : "/";
 
   return (
     <main className="auth-shell">
@@ -12,12 +13,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <h1>관리자 접속</h1>
         <p className="muted">맞춤 공고와 설정을 확인하려면 비밀번호를 입력하세요.</p>
         <form action={loginAdmin} className="auth-form">
+          <input type="hidden" name="next" value={nextPath} />
           <label>
             관리자 비밀번호
             <input name="password" type="password" autoComplete="current-password" required />
           </label>
           {params.error ? <p className="error-text">비밀번호가 맞지 않습니다.</p> : null}
-          <button className="button" type="submit">접속</button>
+          <button className="button" type="submit">설정 열기</button>
         </form>
       </section>
     </main>

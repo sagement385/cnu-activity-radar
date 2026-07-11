@@ -5,6 +5,7 @@ import { scrapeJnuBoard, scrapeJnuEvents } from "./jnu";
 import { scrapeLinkareer } from "./linkareer";
 import { scrapeExternal } from "./external";
 import { curateScrapedOpportunities } from "../curation";
+import { isExpired } from "../date";
 
 export async function scrapeSource(source: Source): Promise<ScrapedOpportunity[]> {
   if (source.id === "jnu_events") {
@@ -44,13 +45,15 @@ export async function runScrape() {
     }
   }
 
-  const curated = await curateScrapedOpportunities(results, settings);
+  const activeResults = results.filter((item) => !item.deadline || !isExpired(item.deadline));
+  const curated = await curateScrapedOpportunities(activeResults, settings);
   const upserted = await upsertOpportunities(curated.map((item) => item.item));
   const recommendationByStableKey = new Map(curated.map((item) => [item.item.stableKey, item.recommendation]));
   const recommendations = await refreshRecommendations(settings, upserted, recommendationByStableKey);
 
   await logRun("scrape", "success", {
     scraped: results.length,
+    active: activeResults.length,
     upserted: upserted.length,
     recommendations: recommendations.length,
     sources: sourceSummaries,
@@ -59,6 +62,7 @@ export async function runScrape() {
 
   return {
     scraped: results.length,
+    active: activeResults.length,
     upserted: upserted.length,
     recommendations: recommendations.length,
     sources: sourceSummaries,

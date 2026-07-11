@@ -15,7 +15,7 @@ services:
       - key: DASHBOARD_SECRET
         sync: false
       - key: SCRAPE_ON_PAGE_LOAD
-        value: "true"
+        value: "false"
       - key: SCRAPE_MIN_INTERVAL_MINUTES
         value: "60"
       - key: USE_SUPABASE

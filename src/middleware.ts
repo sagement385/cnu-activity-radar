@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const secret = process.env.DASHBOARD_SECRET;
   const pathname = request.nextUrl.pathname;
+  const settingsPath = pathname === "/settings" || pathname.startsWith("/settings/");
 
-  if (!secret || secret === "disabled" || pathname === "/admin" || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
+  if (!secret || secret === "disabled" || !settingsPath || pathname === "/admin" || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
     return NextResponse.next();
   }
 
@@ -17,7 +18,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return NextResponse.redirect(new URL("/admin", request.url));
+  const loginUrl = new URL("/admin", request.url);
+  loginUrl.searchParams.set("next", pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

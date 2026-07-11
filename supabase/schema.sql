@@ -29,6 +29,7 @@ create table if not exists opportunities (
   source_name text not null,
   source_url text not null,
   original_url text not null,
+  poster_url text,
   organization text,
   category text not null default '대외활동',
   location text,
@@ -92,6 +93,8 @@ create index if not exists idx_opportunities_source on opportunities(source_id);
 create index if not exists idx_opportunities_last_seen on opportunities(last_seen_at desc);
 create index if not exists idx_recommendations_status_score on recommendations(status, score desc);
 create index if not exists idx_notification_logs_sent_at on notification_logs(sent_at desc);
+
+alter table opportunities add column if not exists poster_url text;
 
 insert into app_settings (id, profile, schedule, preferences, notification)
 values (
