@@ -35,17 +35,40 @@ export function buildOpportunity(source: Source, candidate: LinkCandidate, detai
 
 export function extractImageUrl($: CheerioAPI, element: Parameters<CheerioAPI>[0], baseUrl: string) {
   const container = $(element).closest("li, article, .card, .event, tr, section, div");
-  const directImage = $(element).find("img").first();
-  const image = directImage.length ? directImage : container.find("img").first();
-  const htmlImageUrl = ($(element).html() ?? "").match(/(?:data-src|data-original|data-lazy-src|src|srcset|srcSet|data-srcset|data-srcSet)=["']([^"']+)/i)?.[1] ?? "";
-  const rawUrl = image.attr("data-src") ?? image.attr("data-original") ?? image.attr("data-lazy-src") ?? image.attr("src") ?? image.attr("srcset") ?? image.attr("srcSet") ?? image.attr("data-srcset") ?? image.attr("data-srcSet") ?? htmlImageUrl;
-  const imageUrl = rawUrl.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
+  const images = [...$(element).find("img").toArray(), ...container.find("img").toArray()];
 
-  if (!imageUrl || imageUrl.startsWith("data:")) {
-    return null;
+  for (const imageElement of images) {
+    const image = $(imageElement);
+    const rawUrls = [
+      image.attr("data-src"),
+      image.attr("data-original"),
+      image.attr("data-lazy-src"),
+      image.attr("srcset"),
+      image.attr("srcSet"),
+      image.attr("data-srcset"),
+      image.attr("data-srcSet"),
+      image.attr("src")
+    ];
+
+    for (const rawUrl of rawUrls) {
+      const imageUrl = rawUrl?.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
+      if (isUsableImageUrl(imageUrl)) {
+        return normalizeUrl(imageUrl, baseUrl);
+      }
+    }
   }
 
-  return normalizeUrl(imageUrl, baseUrl);
+  const html = `${$(element).html() ?? ""} ${container.html() ?? ""}`;
+  const htmlMatches = html.matchAll(/(?:data-src|data-original|data-lazy-src|src|srcset|srcSet|data-srcset|data-srcSet)=["']([^"']+)/gi);
+
+  for (const match of htmlMatches) {
+    const imageUrl = match[1]?.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
+    if (isUsableImageUrl(imageUrl)) {
+      return normalizeUrl(imageUrl, baseUrl);
+    }
+  }
+
+  return null;
 }
 
 export async function fetchDetailData(url: string) {
@@ -53,23 +76,27 @@ export async function fetchDetailData(url: string) {
     const html = await fetchHtml(url);
     const $ = loadHtml(html);
     const imageElement = $("meta[property='og:image'], meta[name='twitter:image']").first();
-    const rawImageUrl =
-      imageElement.attr("content") ??
-      $("img").first().attr("data-src") ??
-      $("img").first().attr("data-original") ??
-      $("img").first().attr("src") ??
-      $("img").first().attr("srcset") ??
-      $("img").first().attr("srcSet") ??
-      "";
-    const imageUrl = rawImageUrl.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
+    const metaImageUrl = imageElement.attr("content") ?? "";
+    const imageUrl = isUsableImageUrl(metaImageUrl)
+      ? metaImageUrl
+      : extractImageUrl($, "body", url);
 
     return {
       text: pageText(html).slice(0, 5000),
-      imageUrl: imageUrl && !imageUrl.startsWith("data:") ? normalizeUrl(imageUrl, url) : null
+      imageUrl: imageUrl ? normalizeUrl(imageUrl, url) : null
     };
   } catch {
     return { text: "", imageUrl: null };
   }
+}
+
+function isUsableImageUrl(value: string) {
+  if (!value || value.startsWith("data:") || value.startsWith("blob:")) {
+    return false;
+  }
+
+  const lowered = value.toLowerCase();
+  return !lowered.includes("icon_file") && !lowered.includes("placeholder");
 }
 
 export async function fetchDetailText(url: string) {
