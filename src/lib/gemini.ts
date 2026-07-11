@@ -13,7 +13,7 @@ export type GeminiJudgement = {
 const CATEGORY_ENUM = [...CATEGORIES];
 
 export async function judgeOpportunity(opportunity: ScrapedOpportunity, settings: AppSettings): Promise<GeminiJudgement | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY ?? process.env.GEMINI_API;
   const provider = (process.env.AI_PROVIDER ?? "none").toLowerCase();
 
   if (!apiKey || provider !== "gemini") {
