@@ -6,6 +6,19 @@ import { getSettings } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+function describeError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const value = error as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    return [value.message, value.code, value.details, value.hint].filter(Boolean).join(" | ") || "database scrape failed";
+  }
+
+  return String(error || "database scrape failed");
+}
+
 export async function GET(request: NextRequest) {
   const force = request.nextUrl.searchParams.get("force") === "1";
 
@@ -30,7 +43,7 @@ export async function GET(request: NextRequest) {
       try {
         result = await runScrape();
       } catch (error) {
-        storageError = error instanceof Error ? error.message : "database scrape failed";
+        storageError = describeError(error);
         console.error("Supabase scrape failed", error);
         result = await runLiveScrape(await getSettings());
       }

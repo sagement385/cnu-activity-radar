@@ -37,7 +37,8 @@ export function extractImageUrl($: CheerioAPI, element: Parameters<CheerioAPI>[0
   const container = $(element).closest("li, article, .card, .event, tr, section, div");
   const directImage = $(element).find("img").first();
   const image = directImage.length ? directImage : container.find("img").first();
-  const rawUrl = image.attr("data-src") ?? image.attr("data-original") ?? image.attr("data-lazy-src") ?? image.attr("src") ?? image.attr("srcset") ?? image.attr("data-srcset") ?? "";
+  const htmlImageUrl = ($(element).html() ?? "").match(/(?:data-src|data-original|data-lazy-src|src|srcset|srcSet|data-srcset|data-srcSet)=["']([^"']+)/i)?.[1] ?? "";
+  const rawUrl = image.attr("data-src") ?? image.attr("data-original") ?? image.attr("data-lazy-src") ?? image.attr("src") ?? image.attr("srcset") ?? image.attr("srcSet") ?? image.attr("data-srcset") ?? image.attr("data-srcSet") ?? htmlImageUrl;
   const imageUrl = rawUrl.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
 
   if (!imageUrl || imageUrl.startsWith("data:")) {
@@ -58,6 +59,7 @@ export async function fetchDetailData(url: string) {
       $("img").first().attr("data-original") ??
       $("img").first().attr("src") ??
       $("img").first().attr("srcset") ??
+      $("img").first().attr("srcSet") ??
       "";
     const imageUrl = rawImageUrl.split(",")[0]?.trim().split(/\s+/)[0] ?? "";
 
